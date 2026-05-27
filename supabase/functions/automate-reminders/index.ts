@@ -34,6 +34,16 @@ interface Customer {
   due_date: string | null;
 }
 
+interface AutomationResult {
+  user: string;
+  sent: number;
+  failed: number;
+  skipped?: string;
+  error?: string;
+  errors?: string[];
+  details?: Record<string, unknown>;
+}
+
 const DEFAULT_SUBJECT = "Payment reminder — ₹{{amount}}";
 const DEFAULT_BODY =
   "Hi {{to_name}},\n\nThis is a friendly reminder that your payment of ₹{{amount}} is currently {{status}} (due: {{due_date}}).\n\n— {{from_name}}";
@@ -292,7 +302,7 @@ Deno.serve(async (req) => {
   }
 
   const enabledProfiles = (profiles ?? []) as Profile[];
-  const summary: Array<Record<string, unknown>> = [];
+  const summary: AutomationResult[] = [];
 
   for (const profile of enabledProfiles) {
     try {
