@@ -83,6 +83,7 @@ export function Dashboard() {
     setRunning(true);
     const due = customers.filter((c) => c.status !== "paid" && c.email);
     let sent = 0, failed = 0;
+    const errors: string[] = [];
     for (const c of due) {
       const vars = { to_name: c.name, from_name: profile.company_name || profile.name || "Us", amount: c.amount, status: c.status, due_date: c.due_date ?? "—", upi_link: "" };
       try {
@@ -95,11 +96,15 @@ export function Dashboard() {
         });
         await supabase.from("notifications_sent").insert({ user_id: userId, customer_id: c.id, channel: "email", message: "manual run" });
         sent++;
-      } catch { failed++; }
+      } catch (e) {
+        failed++;
+        errors.push(`${c.email}: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
     setRunning(false);
-    logActivity("automation_run_now", { sent, failed });
-    toast.success(`Sent ${sent} • Failed ${failed}`);
+    logActivity("automation_run_now", { sent, failed, errors: errors.slice(0, 5) });
+    if (failed) toast.error(`Sent ${sent} • Failed ${failed}: ${errors[0] || "check SMTP settings"}`);
+    else toast.success(`Sent ${sent} • Failed ${failed}`);
   }
 
   async function signOut() {
