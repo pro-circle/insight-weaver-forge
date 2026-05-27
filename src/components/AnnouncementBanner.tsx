@@ -11,9 +11,9 @@ export function AnnouncementBanner() {
   }, []);
   if (!show) return null;
   return (
-    <div className="bg-red-600 text-white">
+    <div className="border-b border-amber-300 bg-amber-100 text-amber-900">
       <div className="container mx-auto flex items-start gap-3 px-6 py-3 text-sm">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
         <p className="flex-1 leading-relaxed">
           <span className="font-semibold">You're giving feedback for an MVP — Automated Notification System.</span>{" "}
           Invoice Flow helps small businesses track pending payments and send
@@ -26,7 +26,7 @@ export function AnnouncementBanner() {
             logActivity("banner_dismissed", {});
           }}
           aria-label="Dismiss"
-          className="rounded-md p-1 hover:bg-white/15"
+          className="rounded-md p-1 hover:bg-amber-200"
         >
           <X className="h-4 w-4" />
         </button>

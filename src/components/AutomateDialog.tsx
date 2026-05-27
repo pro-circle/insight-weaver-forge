@@ -117,7 +117,12 @@ export function AutomateDialog({
               <Button onClick={save} disabled={busy} className="flex-1">
                 {busy ? "Saving..." : "Save schedule"}
               </Button>
-              <Button variant="outline" onClick={onRunNow} disabled={running}>
+              <Button
+                variant="outline"
+                onClick={onRunNow}
+                disabled={running}
+                className="hover:bg-green-600 hover:text-white hover:border-green-600"
+              >
                 {running ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...

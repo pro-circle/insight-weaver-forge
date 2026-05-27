@@ -182,9 +182,10 @@ export function SettingsDialog({ userId, onSaved }: { userId: string; onSaved: (
                   value={f.smtp_app_password}
                   onChange={(v) => setF({ ...f, smtp_app_password: v })}
                   placeholder="abcd efgh ijkl mnop"
+                  maxLength={19}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Spaces are okay — we strip them automatically. Click 👁 to reveal.
+                  16 characters · spaces optional (auto-stripped). Click 👁 to reveal.
                 </p>
               </div>
             </div>
