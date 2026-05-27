@@ -4,7 +4,10 @@
 // activity log with exact skip/send/error details, and marks the profile as run
 // only after that due window is evaluated.
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -77,7 +80,9 @@ function localParts(tz: string): { date: string; time: string } {
     hourCycle: "h23",
     timeZone: tz,
   });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+  const parts = Object.fromEntries(
+    fmt.formatToParts(new Date()).map((p) => [p.type, p.value]),
+  );
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     time: `${parts.hour}:${parts.minute}`,
@@ -91,7 +96,9 @@ function localDateOf(iso: string, tz: string): string {
     day: "2-digit",
     timeZone: tz,
   });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+  const parts = Object.fromEntries(
+    fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
@@ -167,26 +174,65 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
 
   if (!scheduled) {
     console.log(`[${p.id}] automation skipped: missing schedule`, baseDetails);
-    await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "missing schedule" });
-    return { user: p.id, sent: 0, failed: 0, skipped: "missing schedule", details: baseDetails };
+    await safeLog(sb, p.id, "automation_cron_skip", {
+      ...baseDetails,
+      reason: "missing schedule",
+    });
+    return {
+      user: p.id,
+      sent: 0,
+      failed: 0,
+      skipped: "missing schedule",
+      details: baseDetails,
+    };
   }
 
   if (!p.smtp_user || !p.smtp_app_password) {
     console.log(`[${p.id}] automation skipped: missing SMTP`, baseDetails);
-    await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "missing SMTP" });
-    return { user: p.id, sent: 0, failed: 0, skipped: "missing SMTP", details: baseDetails };
+    await safeLog(sb, p.id, "automation_cron_skip", {
+      ...baseDetails,
+      reason: "missing SMTP",
+    });
+    return {
+      user: p.id,
+      sent: 0,
+      failed: 0,
+      skipped: "missing SMTP",
+      details: baseDetails,
+    };
   }
 
   if (lastRunLocalDate === today) {
     console.log(`[${p.id}] automation skipped: already ran today`, baseDetails);
-    await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "already ran today" });
-    return { user: p.id, sent: 0, failed: 0, skipped: "already ran today", details: baseDetails };
+    await safeLog(sb, p.id, "automation_cron_skip", {
+      ...baseDetails,
+      reason: "already ran today",
+    });
+    return {
+      user: p.id,
+      sent: 0,
+      failed: 0,
+      skipped: "already ran today",
+      details: baseDetails,
+    };
   }
 
   if (nowHHMM < scheduled) {
-    console.log(`[${p.id}] automation skipped: before scheduled time`, baseDetails);
-    await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "before scheduled time" });
-    return { user: p.id, sent: 0, failed: 0, skipped: "before scheduled time", details: baseDetails };
+    console.log(
+      `[${p.id}] automation skipped: before scheduled time`,
+      baseDetails,
+    );
+    await safeLog(sb, p.id, "automation_cron_skip", {
+      ...baseDetails,
+      reason: "before scheduled time",
+    });
+    return {
+      user: p.id,
+      sent: 0,
+      failed: 0,
+      skipped: "before scheduled time",
+      details: baseDetails,
+    };
   }
 
   const { data: customers, error: custErr } = await sb
@@ -201,15 +247,26 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
 
   const dueCustomers = (customers ?? []) as Customer[];
   if (!dueCustomers.length) {
-    await sb.from("profiles").update({ automation_last_run_at: new Date().toISOString() }).eq("id", p.id);
-    console.log(`[${p.id}] automation complete: no unpaid customers with email`, baseDetails);
+    await sb.from("profiles").update({
+      automation_last_run_at: new Date().toISOString(),
+    }).eq("id", p.id);
+    console.log(
+      `[${p.id}] automation complete: no unpaid customers with email`,
+      baseDetails,
+    );
     await safeLog(sb, p.id, "automation_cron_complete", {
       ...baseDetails,
       sent: 0,
       failed: 0,
       reason: "no unpaid customers with email",
     });
-    return { user: p.id, sent: 0, failed: 0, skipped: "no unpaid customers with email", details: baseDetails };
+    return {
+      user: p.id,
+      sent: 0,
+      failed: 0,
+      skipped: "no unpaid customers with email",
+      details: baseDetails,
+    };
   }
 
   const fromName = p.company_name || p.name || "Us";
@@ -256,7 +313,9 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
     }
   }
 
-  await sb.from("profiles").update({ automation_last_run_at: new Date().toISOString() }).eq("id", p.id);
+  await sb.from("profiles").update({
+    automation_last_run_at: new Date().toISOString(),
+  }).eq("id", p.id);
   console.log(`[${p.id}] automation complete: sent ${sent}, failed ${failed}`, {
     ...baseDetails,
     total_due: dueCustomers.length,
@@ -270,7 +329,13 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
     errors: errors.slice(0, 10),
   });
 
-  return { user: p.id, sent, failed, errors: errors.slice(0, 5), details: baseDetails };
+  return {
+    user: p.id,
+    sent,
+    failed,
+    errors: errors.slice(0, 5),
+    details: baseDetails,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -327,8 +392,10 @@ Deno.serve(async (req) => {
 
   const totals = summary.reduce(
     (acc, item) => ({
-      sent: acc.sent + ("sent" in item && typeof item.sent === "number" ? item.sent : 0),
-      failed: acc.failed + ("failed" in item && typeof item.failed === "number" ? item.failed : 0),
+      sent: acc.sent +
+        ("sent" in item && typeof item.sent === "number" ? item.sent : 0),
+      failed: acc.failed +
+        ("failed" in item && typeof item.failed === "number" ? item.failed : 0),
       skipped: acc.skipped + ("skipped" in item ? 1 : 0),
     }),
     { sent: 0, failed: 0, skipped: 0 },
@@ -340,5 +407,10 @@ Deno.serve(async (req) => {
     summary: summary.slice(0, 20),
   });
 
-  return json(200, { ok: true, enabled_profiles: enabledProfiles.length, totals, summary });
+  return json(200, {
+    ok: true,
+    enabled_profiles: enabledProfiles.length,
+    totals,
+    summary,
+  });
 });
