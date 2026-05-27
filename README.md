@@ -39,7 +39,7 @@ All real secrets live in Supabase → Project Settings → **Edge Functions → 
    supabase functions deploy automate-reminders --no-verify-jwt
    ```
    `automate-reminders` is invoked by pg_cron with its own header secret, so JWT is disabled for it.
-8. **Schedule the cron job** — uncomment the `cron.schedule(...)` block at the bottom of `SUPABASE_SCHEMA.sql`, replace `<PROJECT_REF>` and `<CRON_SECRET>`, and run it. It fires every minute and only emails users whose `automation_time` matches their local clock and who haven't run yet today.
+8. **Schedule the cron job** — uncomment the `cron.schedule(...)` block at the bottom of `SUPABASE_SCHEMA.sql`, replace `<PROJECT_REF>` and `<CRON_SECRET>`, and run it. It fires every minute, queues due reminder emails once the user's local `automation_time` has passed, then processes the queue in small retry-safe batches.
 
 ---
 
