@@ -128,7 +128,7 @@ async function sendSmtpEmail(opts: {
       to: opts.to,
       subject: opts.subject,
       content: opts.body,
-      html: opts.body.replace(/\n/g, "<br/>") ,
+      html: opts.body.replace(/\n/g, "<br/>"),
     });
   } finally {
     try {
@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
   }
 
   const enabledProfiles = (profiles ?? []) as Profile[];
-  const summary = [];
+  const summary: Array<Record<string, unknown>> = [];
 
   for (const profile of enabledProfiles) {
     try {
