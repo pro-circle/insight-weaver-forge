@@ -1,5 +1,5 @@
 // Notification helpers.
-// • Email goes through Supabase Edge Function `send-email` (Nodemailer + user's Gmail SMTP).
+// • Email goes through Supabase Edge Function `send-email` (denomailer + user's Gmail SMTP).
 // • Contact-Developer goes through Edge Function `contact-developer` (EmailJS REST).
 // • WhatsApp / SMS are deep links (opened from the browser).
 import { supabase } from "@/lib/supabase";
@@ -71,7 +71,7 @@ export async function sendReminderEmail(opts: {
   const data = await invokePublicFunction<{ ok: boolean; error?: string }>("send-email", {
     smtp: {
       host: opts.smtp.host || "smtp.gmail.com",
-      port: opts.smtp.port || 587,
+      port: opts.smtp.port || 465,
       user: opts.smtp.user,
       password: String(opts.smtp.password).replace(/\s+/g, ""),
     },
