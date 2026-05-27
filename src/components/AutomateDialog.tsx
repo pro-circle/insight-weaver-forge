@@ -33,15 +33,17 @@ export function AutomateDialog({
 
   async function save() {
     setBusy(true);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
     const { error } = await supabase.from("profiles").update({
       automation_enabled: enabled,
       automation_time: time,
+      timezone,
       updated_at: new Date().toISOString(),
     }).eq("id", userId);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(enabled ? `Automation set for ${time} daily` : "Automation disabled");
-    logActivity("automation_saved", { enabled, time });
+    logActivity("automation_saved", { enabled, time, timezone });
     setOpen(false);
     onSaved();
   }
