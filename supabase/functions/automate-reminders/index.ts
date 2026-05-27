@@ -166,21 +166,25 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
   };
 
   if (!scheduled) {
+    console.log(`[${p.id}] automation skipped: missing schedule`, baseDetails);
     await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "missing schedule" });
     return { user: p.id, sent: 0, failed: 0, skipped: "missing schedule", details: baseDetails };
   }
 
   if (!p.smtp_user || !p.smtp_app_password) {
+    console.log(`[${p.id}] automation skipped: missing SMTP`, baseDetails);
     await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "missing SMTP" });
     return { user: p.id, sent: 0, failed: 0, skipped: "missing SMTP", details: baseDetails };
   }
 
   if (lastRunLocalDate === today) {
+    console.log(`[${p.id}] automation skipped: already ran today`, baseDetails);
     await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "already ran today" });
     return { user: p.id, sent: 0, failed: 0, skipped: "already ran today", details: baseDetails };
   }
 
   if (nowHHMM < scheduled) {
+    console.log(`[${p.id}] automation skipped: before scheduled time`, baseDetails);
     await safeLog(sb, p.id, "automation_cron_skip", { ...baseDetails, reason: "before scheduled time" });
     return { user: p.id, sent: 0, failed: 0, skipped: "before scheduled time", details: baseDetails };
   }
