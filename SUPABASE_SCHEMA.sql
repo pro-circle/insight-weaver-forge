@@ -134,6 +134,8 @@ create table if not exists public.visitor_logs (
   user_agent text,
   created_at timestamptz default now()
 );
+grant insert on public.visitor_logs to anon, authenticated;
+grant select, insert on public.visitor_logs to service_role;
 
 -- 6. APP EVENTS
 create table if not exists public.app_events (
@@ -143,6 +145,8 @@ create table if not exists public.app_events (
   meta jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
+grant select, insert, update, delete on public.app_events to authenticated;
+grant select, insert, update, delete on public.app_events to service_role;
 
 -- 7. UPLOADED FILES (metadata; binary lives in Storage)
 create table if not exists public.uploaded_files (
@@ -157,6 +161,8 @@ create table if not exists public.uploaded_files (
   created_at timestamptz default now()
 );
 create index if not exists uploaded_files_user_idx on public.uploaded_files(user_id);
+grant select, insert, update, delete on public.uploaded_files to authenticated;
+grant select, insert, update, delete on public.uploaded_files to service_role;
 
 -- ============================================================
 -- AUTO-CREATE PROFILE ON SIGNUP (carries name + company from metadata)
