@@ -39,6 +39,7 @@ alter table public.profiles add column if not exists phone text;
 alter table public.profiles add column if not exists smtp_host text default 'smtp.gmail.com';
 alter table public.profiles add column if not exists smtp_port integer default 465;
 alter table public.profiles alter column smtp_port set default 465;
+update public.profiles set smtp_port = 465 where coalesce(smtp_host, 'smtp.gmail.com') = 'smtp.gmail.com' and coalesce(smtp_port, 587) = 587;
 alter table public.profiles add column if not exists smtp_user text;
 alter table public.profiles add column if not exists smtp_app_password text;
 alter table public.profiles add column if not exists email_subject_template text;
