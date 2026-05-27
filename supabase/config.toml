@@ -1,0 +1,18 @@
+# Per-function config. These functions are intentionally public-callable from
+# the browser (Firebase Hosting origin) — they validate their own inputs and,
+# where applicable, a CRON_SECRET header. Leaving verify_jwt = true (the
+# default) makes the Supabase gateway reject calls before our CORS handler
+# runs, which surfaces in the browser as "No 'Access-Control-Allow-Origin'
+# header is present on the requested resource".
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.contact-developer]
+verify_jwt = false
+
+[functions.ai-insight]
+verify_jwt = false
+
+[functions.automate-reminders]
+verify_jwt = false
