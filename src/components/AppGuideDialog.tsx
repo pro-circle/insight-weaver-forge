@@ -133,8 +133,8 @@ export function AppGuideDialog() {
               </Step>
               <Step n={3} title="Set up automation (server-side cron)">
                 Open <b>Automate email reminders</b>, toggle it on and pick a daily send time.
-                A Supabase Edge Function (<code>automate-reminders</code>) is invoked by pg_cron
-                and emails every customer whose status isn't <i>paid</i>. <b>The app does not need to be open.</b>
+                A Supabase Edge Function (<code>automate-reminders</code>) is invoked by pg_cron,
+                queues due reminders, then sends retry-safe email batches for every customer whose status isn't <i>paid</i>. <b>The app does not need to be open.</b>
               </Step>
               <Step n={4} title="Channels — what's automated vs. semi-automated">
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
