@@ -188,7 +188,7 @@ export function Dashboard() {
               variant="ghost"
               size="sm"
               onClick={signOut}
-              className="hover:bg-blue-700 hover:text-white"
+              className="hover:bg-red-600 hover:text-white"
             >
               <LogOut className="mr-1 h-4 w-4" /> Sign out
             </Button>

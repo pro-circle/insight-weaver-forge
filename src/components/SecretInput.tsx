@@ -10,8 +10,8 @@ import { Eye, EyeOff } from "lucide-react";
  * rendered text is masked.
  */
 export function SecretInput({
-  id, name, autoComplete, value, onChange, placeholder,
-}: { id?: string; name?: string; autoComplete?: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  id, name, autoComplete, value, onChange, placeholder, maxLength,
+}: { id?: string; name?: string; autoComplete?: string; value: string; onChange: (v: string) => void; placeholder?: string; maxLength?: number }) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -20,6 +20,7 @@ export function SecretInput({
         name={name}
         type={show ? "text" : "password"}
         value={value}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete ?? "off"}
