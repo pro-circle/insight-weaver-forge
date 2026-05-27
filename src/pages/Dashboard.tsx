@@ -49,32 +49,57 @@ export function Dashboard() {
   const fetchAll = useCallback(async () => {
     const [{ data: p }, { data: cs }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("customers").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase
+        .from("customers")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
     ]);
     setProfile(p as Profile | null);
     setCustomers((cs as Customer[] | null) ?? []);
-    if (firstLoad.current) { setLoading(false); firstLoad.current = false; }
+    if (firstLoad.current) {
+      setLoading(false);
+      firstLoad.current = false;
+    }
   }, [userId]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   const stats = useMemo(() => {
-    const sum = (s: string) => customers.filter((c) => c.status === s).reduce((a, c) => a + Number(c.amount || 0), 0);
+    const sum = (s: string) =>
+      customers.filter((c) => c.status === s).reduce((a, c) => a + Number(c.amount || 0), 0);
     const cnt = (s: string) => customers.filter((c) => c.status === s).length;
-    const paid = sum("paid"), pending = sum("pending"), overdue = sum("overdue");
+    const paid = sum("paid"),
+      pending = sum("pending"),
+      overdue = sum("overdue");
     return {
-      paid, pending, overdue, total: paid + pending + overdue,
-      paidCount: cnt("paid"), pendingCount: cnt("pending"), overdueCount: cnt("overdue"),
+      paid,
+      pending,
+      overdue,
+      total: paid + pending + overdue,
+      paidCount: cnt("paid"),
+      pendingCount: cnt("pending"),
+      overdueCount: cnt("overdue"),
       totalCount: customers.length,
     };
   }, [customers]);
 
-  const visible = useMemo(() => customers.filter((c) => {
-    if (filter !== "all" && c.status !== filter) return false;
-    if (!q.trim()) return true;
-    const s = q.toLowerCase();
-    return c.name.toLowerCase().includes(s) || (c.email ?? "").toLowerCase().includes(s) || (c.phone ?? "").toLowerCase().includes(s);
-  }), [customers, q, filter]);
+  const visible = useMemo(
+    () =>
+      customers.filter((c) => {
+        if (filter !== "all" && c.status !== filter) return false;
+        if (!q.trim()) return true;
+        const s = q.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(s) ||
+          (c.email ?? "").toLowerCase().includes(s) ||
+          (c.phone ?? "").toLowerCase().includes(s)
+        );
+      }),
+    [customers, q, filter],
+  );
 
   async function runAutomationNow() {
     if (!profile?.smtp_user || !profile?.smtp_app_password) {
@@ -82,24 +107,45 @@ export function Dashboard() {
     }
     setRunning(true);
     const due = customers.filter((c) => c.status !== "paid" && c.email);
-    let sent = 0, failed = 0;
+    let sent = 0,
+      failed = 0;
+    const errors: string[] = [];
     for (const c of due) {
-      const vars = { to_name: c.name, from_name: profile.company_name || profile.name || "Us", amount: c.amount, status: c.status, due_date: c.due_date ?? "—", upi_link: "" };
+      const vars = {
+        to_name: c.name,
+        from_name: profile.company_name || profile.name || "Us",
+        amount: c.amount,
+        status: c.status,
+        due_date: c.due_date ?? "—",
+        upi_link: "",
+      };
       try {
         await sendReminderEmail({
-          smtp: { host: profile.smtp_host, port: profile.smtp_port, user: profile.smtp_user, password: profile.smtp_app_password },
+          smtp: {
+            host: profile.smtp_host,
+            port: profile.smtp_port,
+            user: profile.smtp_user,
+            password: profile.smtp_app_password,
+          },
           from_name: profile.company_name || profile.name || "Us",
           to_email: c.email!,
           subject: renderTemplate(profile.email_subject_template || DEFAULT_EMAIL_SUBJECT, vars),
           body: renderTemplate(profile.email_body_template || DEFAULT_EMAIL_BODY, vars),
         });
-        await supabase.from("notifications_sent").insert({ user_id: userId, customer_id: c.id, channel: "email", message: "manual run" });
+        await supabase
+          .from("notifications_sent")
+          .insert({ user_id: userId, customer_id: c.id, channel: "email", message: "manual run" });
         sent++;
-      } catch { failed++; }
+      } catch (e) {
+        failed++;
+        errors.push(`${c.email}: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
     setRunning(false);
-    logActivity("automation_run_now", { sent, failed });
-    toast.success(`Sent ${sent} • Failed ${failed}`);
+    logActivity("automation_run_now", { sent, failed, errors: errors.slice(0, 5) });
+    if (failed)
+      toast.error(`Sent ${sent} • Failed ${failed}: ${errors[0] || "check SMTP settings"}`);
+    else toast.success(`Sent ${sent} • Failed ${failed}`);
   }
 
   async function signOut() {
@@ -108,7 +154,11 @@ export function Dashboard() {
   }
 
   if (loading) {
-    return <div className="grid min-h-screen place-items-center bg-white"><Loader2 className="h-6 w-6 animate-spin text-blue-700" /></div>;
+    return (
+      <div className="grid min-h-screen place-items-center bg-white">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
+      </div>
+    );
   }
 
   if (profile && !profile.company_name) {
@@ -128,10 +178,18 @@ export function Dashboard() {
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <AppGuideDialog />
             <FeedbackDialog />
-            <ContactDeveloperDialog defaultName={profile?.name ?? ""} defaultEmail={user?.email ?? ""} />
+            <ContactDeveloperDialog
+              defaultName={profile?.name ?? ""}
+              defaultEmail={user?.email ?? ""}
+            />
             <TemplatesDialog userId={userId} onSaved={fetchAll} />
             <SettingsDialog userId={userId} onSaved={fetchAll} />
-            <Button variant="ghost" size="sm" onClick={signOut} className="hover:bg-blue-700 hover:text-white">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="hover:bg-blue-700 hover:text-white"
+            >
               <LogOut className="mr-1 h-4 w-4" /> Sign out
             </Button>
           </div>
@@ -141,20 +199,37 @@ export function Dashboard() {
       <main className="container mx-auto space-y-6 px-4 py-6 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold sm:text-2xl">Hi {profile?.name?.split(" ")[0] || "there"} 👋</h1>
-            <p className="truncate text-sm text-muted-foreground"><b>{profile?.company_name}</b></p>
+            <h1 className="text-xl font-semibold sm:text-2xl">
+              Hi {profile?.name?.split(" ")[0] || "there"} 👋
+            </h1>
+            <p className="truncate text-sm text-muted-foreground">
+              <b>{profile?.company_name}</b>
+            </p>
           </div>
-          <AutomateDialog userId={userId} onSaved={fetchAll} onRunNow={runAutomationNow} running={running} />
+          <AutomateDialog
+            userId={userId}
+            onSaved={fetchAll}
+            onRunNow={runAutomationNow}
+            running={running}
+          />
         </div>
 
         <ChartSummary stats={stats} />
 
         <Tabs defaultValue="customers">
           <TabsList className="flex w-full flex-wrap gap-1 sm:w-auto">
-            <TabsTrigger value="customers" className={TAB_TRIGGER}>Customers</TabsTrigger>
-            <TabsTrigger value="add"       className={TAB_TRIGGER}>Add</TabsTrigger>
-            <TabsTrigger value="import"    className={TAB_TRIGGER}>Import Excel</TabsTrigger>
-            <TabsTrigger value="table"     className={TAB_TRIGGER}>Table view</TabsTrigger>
+            <TabsTrigger value="customers" className={TAB_TRIGGER}>
+              Customers
+            </TabsTrigger>
+            <TabsTrigger value="add" className={TAB_TRIGGER}>
+              Add
+            </TabsTrigger>
+            <TabsTrigger value="import" className={TAB_TRIGGER}>
+              Import Excel
+            </TabsTrigger>
+            <TabsTrigger value="table" className={TAB_TRIGGER}>
+              Table view
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="customers" className="space-y-4 pt-4">
@@ -162,16 +237,26 @@ export function Dashboard() {
               <CardContent className="flex flex-wrap items-center gap-2 p-3">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input id="customer-search" name="customer_search" className="pl-9" placeholder="Search name / email / phone" value={q} onChange={(e) => setQ(e.target.value)} />
+                  <Input
+                    id="customer-search"
+                    name="customer_search"
+                    className="pl-9"
+                    placeholder="Search name / email / phone"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
                 </div>
                 {(["all", "paid", "pending", "overdue"] as const).map((s) => (
                   <Button
-                    key={s} size="sm"
+                    key={s}
+                    size="sm"
                     variant={filter === s ? "default" : "outline"}
                     onClick={() => setFilter(s)}
-                    className={filter === s
-                      ? "bg-blue-700 hover:bg-blue-900"
-                      : "hover:bg-blue-700 hover:text-white"}
+                    className={
+                      filter === s
+                        ? "bg-blue-700 hover:bg-blue-900"
+                        : "hover:bg-blue-700 hover:text-white"
+                    }
                   >
                     {s}
                   </Button>
@@ -180,20 +265,38 @@ export function Dashboard() {
             </Card>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {visible.map((c) => (
-                <UserCard key={c.id} customer={c} profile={profile!} fromName={fromName} onDeleted={fetchAll} />
+                <UserCard
+                  key={c.id}
+                  customer={c}
+                  profile={profile!}
+                  fromName={fromName}
+                  onDeleted={fetchAll}
+                />
               ))}
               {visible.length === 0 && (
-                <Card><CardContent className="p-10 text-center text-muted-foreground">No customers match.</CardContent></Card>
+                <Card>
+                  <CardContent className="p-10 text-center text-muted-foreground">
+                    No customers match.
+                  </CardContent>
+                </Card>
               )}
             </div>
           </TabsContent>
 
           <TabsContent value="add" className="pt-4">
-            <Card><CardContent className="p-5"><ManualAddForm userId={userId} onAdded={fetchAll} /></CardContent></Card>
+            <Card>
+              <CardContent className="p-5">
+                <ManualAddForm userId={userId} onAdded={fetchAll} />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="import" className="pt-4">
-            <Card><CardContent className="p-5"><UploadExcel userId={userId} onUploaded={fetchAll} /></CardContent></Card>
+            <Card>
+              <CardContent className="p-5">
+                <UploadExcel userId={userId} onUploaded={fetchAll} />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="table" className="pt-4">

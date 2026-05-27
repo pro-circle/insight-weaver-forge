@@ -16,7 +16,7 @@ create table if not exists public.profiles (
   enable_upi boolean default true,
   -- Gmail SMTP (16-char app password)
   smtp_host text default 'smtp.gmail.com',
-  smtp_port integer default 587,
+  smtp_port integer default 465,
   smtp_user text,
   smtp_app_password text,
   -- Editable templates ({{double_braces}})
@@ -32,12 +32,16 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, update on public.profiles to service_role;
 
 -- Migrate existing installations
 alter table public.profiles add column if not exists company_name text;
 alter table public.profiles add column if not exists phone text;
 alter table public.profiles add column if not exists smtp_host text default 'smtp.gmail.com';
-alter table public.profiles add column if not exists smtp_port integer default 587;
+alter table public.profiles add column if not exists smtp_port integer default 465;
+alter table public.profiles alter column smtp_port set default 465;
+update public.profiles set smtp_port = 465 where coalesce(smtp_host, 'smtp.gmail.com') = 'smtp.gmail.com' and coalesce(smtp_port, 587) = 587;
 alter table public.profiles add column if not exists smtp_user text;
 alter table public.profiles add column if not exists smtp_app_password text;
 alter table public.profiles add column if not exists email_subject_template text;
@@ -67,6 +71,8 @@ create table if not exists public.customers (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+grant select, insert, update, delete on public.customers to authenticated;
+grant select, insert, update, delete on public.customers to service_role;
 create index if not exists customers_user_id_idx on public.customers(user_id);
 
 -- 3. ACTIVITY LOGS
@@ -77,6 +83,8 @@ create table if not exists public.activity_logs (
   details jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
+grant select, insert on public.activity_logs to authenticated;
+grant select, insert on public.activity_logs to service_role;
 create index if not exists activity_user_idx on public.activity_logs(user_id);
 
 -- 4. NOTIFICATIONS SENT
@@ -89,7 +97,35 @@ create table if not exists public.notifications_sent (
   message text,
   created_at timestamptz default now()
 );
+grant select, insert, update, delete on public.notifications_sent to authenticated;
+grant select, insert, update, delete on public.notifications_sent to service_role;
 alter table public.notifications_sent add column if not exists message text;
+
+-- 4b. EMAIL QUEUE (server-side automation worker)
+create table if not exists public.email_queue (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  customer_id uuid references public.customers(id) on delete set null,
+  recipient text not null,
+  subject text not null,
+  body text not null,
+  from_name text not null,
+  smtp_host text default 'smtp.gmail.com',
+  smtp_port integer default 465,
+  smtp_user text not null,
+  smtp_app_password text not null,
+  status text not null default 'pending' check (status in ('pending','processing','sent','failed')),
+  attempts integer not null default 0,
+  last_error text,
+  idempotency_key text not null unique,
+  scheduled_for timestamptz not null default now(),
+  sent_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+grant all on public.email_queue to service_role;
+create index if not exists email_queue_pending_idx on public.email_queue(status, scheduled_for, created_at);
+create index if not exists email_queue_user_idx on public.email_queue(user_id);
 
 -- 5. VISITOR LOGS
 create table if not exists public.visitor_logs (
@@ -98,6 +134,8 @@ create table if not exists public.visitor_logs (
   user_agent text,
   created_at timestamptz default now()
 );
+grant insert on public.visitor_logs to anon, authenticated;
+grant select, insert on public.visitor_logs to service_role;
 
 -- 6. APP EVENTS
 create table if not exists public.app_events (
@@ -107,6 +145,8 @@ create table if not exists public.app_events (
   meta jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
+grant select, insert, update, delete on public.app_events to authenticated;
+grant select, insert, update, delete on public.app_events to service_role;
 
 -- 7. UPLOADED FILES (metadata; binary lives in Storage)
 create table if not exists public.uploaded_files (
@@ -120,6 +160,8 @@ create table if not exists public.uploaded_files (
   rows_imported integer,
   created_at timestamptz default now()
 );
+grant select, insert, update, delete on public.uploaded_files to authenticated;
+grant select, insert, update, delete on public.uploaded_files to service_role;
 create index if not exists uploaded_files_user_idx on public.uploaded_files(user_id);
 
 -- ============================================================
@@ -157,6 +199,7 @@ alter table public.profiles            enable row level security;
 alter table public.customers           enable row level security;
 alter table public.activity_logs       enable row level security;
 alter table public.notifications_sent  enable row level security;
+alter table public.email_queue         enable row level security;
 alter table public.visitor_logs        enable row level security;
 alter table public.app_events          enable row level security;
 alter table public.uploaded_files      enable row level security;

@@ -1,5 +1,5 @@
 // Notification helpers.
-// • Email goes through Supabase Edge Function `send-email` (Nodemailer + user's Gmail SMTP).
+// • Email goes through Supabase Edge Function `send-email` (denomailer + user's Gmail SMTP).
 // • Contact-Developer goes through Edge Function `contact-developer` (EmailJS REST).
 // • WhatsApp / SMS are deep links (opened from the browser).
 import { supabase } from "@/lib/supabase";
@@ -41,11 +41,17 @@ async function invokePublicFunction<T>(name: string, body: unknown) {
 
 // ============== UPI deep-link ==============
 export function buildUpiLink(opts: {
-  upiId: string; payeeName: string; amount: number; note?: string;
+  upiId: string;
+  payeeName: string;
+  amount: number;
+  note?: string;
 }) {
   const params = new URLSearchParams({
-    pa: opts.upiId, pn: opts.payeeName, am: String(opts.amount),
-    cu: "INR", tn: opts.note ?? "Payment",
+    pa: opts.upiId,
+    pn: opts.payeeName,
+    am: String(opts.amount),
+    cu: "INR",
+    tn: opts.note ?? "Payment",
   });
   return `upi://pay?${params.toString()}`;
 }
@@ -71,7 +77,7 @@ export async function sendReminderEmail(opts: {
   const data = await invokePublicFunction<{ ok: boolean; error?: string }>("send-email", {
     smtp: {
       host: opts.smtp.host || "smtp.gmail.com",
-      port: opts.smtp.port || 587,
+      port: opts.smtp.port || 465,
       user: opts.smtp.user,
       password: String(opts.smtp.password).replace(/\s+/g, ""),
     },
@@ -86,11 +92,16 @@ export async function sendReminderEmail(opts: {
 
 // ============== Contact Developer (server-proxied EmailJS) ==============
 export async function sendContactDeveloper(payload: {
-  name: string; user_email: string; user_message: string;
+  name: string;
+  user_email: string;
+  user_message: string;
 }) {
-  const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>("contact-developer", {
-    body: payload,
-  });
+  const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>(
+    "contact-developer",
+    {
+      body: payload,
+    },
+  );
   if (error) throw new Error(error.message);
   if (!data?.ok) throw new Error(data?.error || "Failed to send");
   return data;

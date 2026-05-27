@@ -1,25 +1,13 @@
-// Called by pg_cron on a schedule (recommended: every 5 minutes). Uses the
-// SERVICE ROLE key to bypass RLS so it can read every user's profile +
-// pending customers and send through each user's own Gmail SMTP.
+// Called by pg_cron every minute. The function now uses a small database
+// queue instead of trying to do the whole daily automation as one brittle
+// synchronous pass:
+//   1. Find users whose local scheduled time has passed today.
+//   2. Enqueue one idempotent email job per unpaid customer per local day.
+//   3. Process a small batch of queued jobs with retries and detailed logs.
 //
-// Auth: requires the shared `x-cron-secret` header (set inside the pg_cron
-// job). Without it, returns 401.
-//
-// Refactor notes (fixes "no logs in dashboard / nothing sent"):
-//   1. SMTP uses port 465 + implicit TLS by default. Denomailer's STARTTLS
-//      path (port 587, tls:false) frequently throws "invalid cmd" against
-//      Gmail and the whole batch dies silently.
-//   2. The previous version only fired when `localHHMM(tz) === automation_time`
-//      EXACTLY. If pg_cron didn't tick on that exact minute (network jitter,
-//      cron set to */5, etc.) the user was skipped for the whole day. We now
-//      treat `automation_time` as "earliest send time" and run once per local
-//      day per user using `automation_last_run_at` for idempotency.
-//   3. Every invocation writes a heartbeat to `activity_logs` (action
-//      `automation_cron_tick`) so you can confirm the cron is actually
-//      hitting the function from the Supabase dashboard, even when there's
-//      nothing to send.
-//   4. Per-user / per-customer errors are caught, logged, and counted —
-//      they no longer abort the whole run.
+// This fixes the common "manual run works but automatic mail does not" case
+// where an old automation_last_run_at value, a missed exact cron minute, or a
+// single SMTP failure prevents the rest of the automation from being visible.
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
@@ -42,13 +30,35 @@ interface Profile {
 }
 
 interface Customer {
-  id: string; user_id: string; name: string;
-  email: string | null; amount: number; status: string; due_date: string | null;
+  id: string;
+  user_id: string;
+  name: string;
+  email: string | null;
+  amount: number;
+  status: string;
+  due_date: string | null;
+}
+
+interface EmailJob {
+  id: string;
+  user_id: string;
+  customer_id: string | null;
+  recipient: string;
+  subject: string;
+  body: string;
+  from_name: string;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string;
+  smtp_app_password: string;
+  attempts: number;
 }
 
 const DEFAULT_SUBJECT = "Payment reminder — ₹{{amount}}";
 const DEFAULT_BODY =
   "Hi {{to_name}},\n\nThis is a friendly reminder that your payment of ₹{{amount}} is currently {{status}} (due: {{due_date}}).\n\n— {{from_name}}";
+const MAX_ATTEMPTS = 3;
+const PROCESS_LIMIT = 8;
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const json = (status: number, body: unknown) =>
@@ -61,8 +71,13 @@ function render(tpl: string, vars: Record<string, string | number>) {
 /** Returns the current local date (YYYY-MM-DD) and time (HH:MM) for `tz`. */
 function localParts(tz: string): { date: string; time: string } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: tz,
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
   return {
@@ -74,7 +89,10 @@ function localParts(tz: string): { date: string; time: string } {
 /** Returns the local YYYY-MM-DD of an ISO timestamp in the given tz. */
 function localDateOf(iso: string, tz: string): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric", month: "2-digit", day: "2-digit", timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: tz,
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
@@ -83,14 +101,16 @@ function localDateOf(iso: string, tz: string): string {
 async function logHeartbeat(sb: SupabaseClient, details: Record<string, unknown>) {
   try {
     await sb.from("activity_logs").insert({
-      user_id: null, action: "automation_cron_tick", details,
+      user_id: null,
+      action: "automation_cron_tick",
+      details,
     });
   } catch (e) {
     console.error("heartbeat log failed", e);
   }
 }
 
-async function processUser(sb: SupabaseClient, p: Profile) {
+async function enqueueUserJobs(sb: SupabaseClient, p: Profile) {
   const tz = p.timezone || "Asia/Kolkata";
   const now = new Date();
   const { date: today, time: nowHHMM } = localParts(tz);
@@ -99,11 +119,6 @@ async function processUser(sb: SupabaseClient, p: Profile) {
   if (!p.smtp_user || !p.smtp_app_password || !scheduled) {
     return { skipped: "missing config" };
   }
-  // Already ran today (in user tz)?
-  if (p.automation_last_run_at && localDateOf(p.automation_last_run_at, tz) === today) {
-    return { skipped: "already ran today" };
-  }
-  // Not yet time?
   if (nowHHMM < scheduled) {
     return { skipped: `before scheduled (${nowHHMM} < ${scheduled})` };
   }
@@ -117,64 +132,163 @@ async function processUser(sb: SupabaseClient, p: Profile) {
 
   if (custErr) throw custErr;
 
-  // Always mark as run, even with zero customers, so we don't loop forever.
-  await sb.from("profiles").update({ automation_last_run_at: now.toISOString() }).eq("id", p.id);
-
   if (!customers?.length) {
     await sb.from("activity_logs").insert({
-      user_id: p.id, action: "automation_cron_run", details: { sent: 0, failed: 0, reason: "no due customers" },
+      user_id: p.id,
+      action: "automation_cron_enqueue",
+      details: { queued: 0, reason: "no due customers", local_date: today },
     });
-    return { sent: 0, failed: 0 };
+    await sb.from("profiles").update({ automation_last_run_at: now.toISOString() }).eq("id", p.id);
+    return { queued: 0 };
   }
 
   const fromName = p.company_name || p.name || "Us";
-  const port = p.smtp_port || 465;
-  const useImplicitTls = port === 465;
-  const client = new SMTPClient({
-    connection: {
-      hostname: p.smtp_host || "smtp.gmail.com",
-      port,
-      tls: useImplicitTls,
-      auth: { username: p.smtp_user, password: p.smtp_app_password.replace(/\s+/g, "") },
-    },
+  const jobs = (customers as Customer[]).map((c) => {
+    const vars = {
+      to_name: c.name,
+      from_name: fromName,
+      amount: c.amount,
+      status: c.status,
+      due_date: c.due_date ?? "—",
+      upi_link: "",
+    };
+    return {
+      user_id: p.id,
+      customer_id: c.id,
+      recipient: c.email!,
+      subject: render(p.email_subject_template || DEFAULT_SUBJECT, vars),
+      body: render(p.email_body_template || DEFAULT_BODY, vars),
+      from_name: fromName,
+      smtp_host: p.smtp_host || "smtp.gmail.com",
+      smtp_port: p.smtp_port || 465,
+      smtp_user: p.smtp_user!,
+      smtp_app_password: p.smtp_app_password!.replace(/\s+/g, ""),
+      status: "pending",
+      idempotency_key: `${p.id}:${c.id}:${today}`,
+      scheduled_for: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
   });
 
-  let sent = 0, failed = 0;
+  const { error: queueErr } = await sb
+    .from("email_queue")
+    .upsert(jobs, { onConflict: "idempotency_key", ignoreDuplicates: true });
+
+  if (queueErr) throw queueErr;
+
+  await sb.from("profiles").update({ automation_last_run_at: now.toISOString() }).eq("id", p.id);
+  await sb.from("activity_logs").insert({
+    user_id: p.id,
+    action: "automation_cron_enqueue",
+    details: { queued_attempted: jobs.length, local_date: today, scheduled, timezone: tz },
+  });
+  return { queued: jobs.length };
+}
+
+function nextRetryIso(attempts: number) {
+  return new Date(Date.now() + Math.min(30, attempts * 5) * 60_000).toISOString();
+}
+
+async function processQueuedEmails(sb: SupabaseClient) {
+  const nowIso = new Date().toISOString();
+  const { data: jobs, error } = await sb
+    .from("email_queue")
+    .select(
+      "id, user_id, customer_id, recipient, subject, body, from_name, smtp_host, smtp_port, smtp_user, smtp_app_password, attempts",
+    )
+    .eq("status", "pending")
+    .lte("scheduled_for", nowIso)
+    .lt("attempts", MAX_ATTEMPTS)
+    .order("created_at", { ascending: true })
+    .limit(PROCESS_LIMIT);
+
+  if (error) throw error;
+
+  let sent = 0,
+    failed = 0;
   const errors: string[] = [];
 
-  for (const c of customers as Customer[]) {
-    const vars = {
-      to_name: c.name, from_name: fromName, amount: c.amount,
-      status: c.status, due_date: c.due_date ?? "—", upi_link: "",
-    };
+  for (const job of (jobs ?? []) as EmailJob[]) {
+    const attempt = (job.attempts || 0) + 1;
+    const { data: locked } = await sb
+      .from("email_queue")
+      .update({
+        status: "processing",
+        attempts: attempt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
+    if (!locked) continue;
+
+    let client: SMTPClient | null = null;
     try {
-      const subject = render(p.email_subject_template || DEFAULT_SUBJECT, vars);
-      const text = render(p.email_body_template || DEFAULT_BODY, vars);
-      await client.send({
-        from: `${fromName} <${p.smtp_user}>`,
-        to: c.email!,
-        subject,
-        content: text,
-        html: text.replace(/\n/g, "<br/>"),
+      const port = job.smtp_port || 465;
+      client = new SMTPClient({
+        connection: {
+          hostname: job.smtp_host || "smtp.gmail.com",
+          port,
+          tls: port === 465,
+          auth: { username: job.smtp_user, password: job.smtp_app_password.replace(/\s+/g, "") },
+        },
       });
+
+      await client.send({
+        from: `${job.from_name || job.smtp_user} <${job.smtp_user}>`,
+        to: job.recipient,
+        subject: job.subject,
+        content: job.body,
+        html: job.body.replace(/\n/g, "<br/>"),
+      });
+
+      await sb
+        .from("email_queue")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_error: null,
+        })
+        .eq("id", job.id);
       await sb.from("notifications_sent").insert({
-        user_id: p.id, customer_id: c.id, channel: "email", message: "auto",
+        user_id: job.user_id,
+        customer_id: job.customer_id,
+        channel: "email",
+        message: "auto",
       });
       sent++;
     } catch (e) {
       failed++;
       const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${c.email}: ${msg}`);
-      console.error(`[${p.id}] send to ${c.email} failed:`, msg);
+      errors.push(`${job.recipient}: ${msg}`);
+      console.error(`[${job.user_id}] queued send to ${job.recipient} failed:`, msg);
+      await sb
+        .from("email_queue")
+        .update({
+          status: attempt >= MAX_ATTEMPTS ? "failed" : "pending",
+          last_error: msg,
+          scheduled_for: attempt >= MAX_ATTEMPTS ? nowIso : nextRetryIso(attempt),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+      await sb.from("activity_logs").insert({
+        user_id: job.user_id,
+        action: "automation_email_error",
+        details: { recipient: job.recipient, attempt, error: msg },
+      });
+    } finally {
+      try {
+        await client?.close();
+      } catch {
+        /* noop */
+      }
     }
   }
-  try { await client.close(); } catch { /* noop */ }
 
-  await sb.from("activity_logs").insert({
-    user_id: p.id, action: "automation_cron_run",
-    details: { sent, failed, errors: errors.slice(0, 5) },
-  });
-  return { sent, failed };
+  return { picked: jobs?.length ?? 0, sent, failed, errors: errors.slice(0, 5) };
 }
 
 Deno.serve(async (req) => {
@@ -200,7 +314,9 @@ Deno.serve(async (req) => {
 
   const { data: profiles, error } = await sb
     .from("profiles")
-    .select("id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template")
+    .select(
+      "id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template",
+    )
     .eq("automation_enabled", true);
 
   if (error) {
@@ -212,29 +328,43 @@ Deno.serve(async (req) => {
   const candidates = profiles ?? [];
   console.log(`automate-reminders: ${candidates.length} enabled profile(s)`);
 
-  const summary: Array<{ user: string; sent?: number; failed?: number; skipped?: string; error?: string }> = [];
+  const summary: Array<{ user: string; queued?: number; skipped?: string; error?: string }> = [];
 
   for (const p of candidates as Profile[]) {
     try {
-      const r = await processUser(sb, p);
+      const r = await enqueueUserJobs(sb, p);
       summary.push({ user: p.id, ...r });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error(`processUser(${p.id}) failed:`, msg);
+      console.error(`enqueueUserJobs(${p.id}) failed:`, msg);
       summary.push({ user: p.id, error: msg });
       try {
         await sb.from("activity_logs").insert({
-          user_id: p.id, action: "automation_cron_error", details: { error: msg },
+          user_id: p.id,
+          action: "automation_cron_error",
+          details: { error: msg },
         });
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
+  }
+
+  let processed = { picked: 0, sent: 0, failed: 0, errors: [] as string[] };
+  try {
+    processed = await processQueuedEmails(sb);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("processQueuedEmails failed:", msg);
+    await logHeartbeat(sb, { queue_error: msg });
   }
 
   await logHeartbeat(sb, {
     enabled_profiles: candidates.length,
-    processed: summary.length,
+    enqueued_profiles: summary.length,
+    processed,
     summary: summary.slice(0, 20),
   });
 
-  return json(200, { ok: true, users: summary.length, summary });
+  return json(200, { ok: true, users: summary.length, summary, processed });
 });
