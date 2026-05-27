@@ -21,7 +21,7 @@ interface Form {
 
 const empty: Form = {
   company_name: "", phone: "",
-  smtp_host: "smtp.gmail.com", smtp_port: 587,
+  smtp_host: "smtp.gmail.com", smtp_port: 465,
   smtp_user: "", smtp_app_password: "",
 };
 
@@ -40,7 +40,7 @@ export function SettingsDialog({ userId, onSaved }: { userId: string; onSaved: (
           company_name: data.company_name ?? "",
           phone: data.phone ?? "",
           smtp_host: data.smtp_host ?? "smtp.gmail.com",
-          smtp_port: data.smtp_port ?? 587,
+          smtp_port: data.smtp_port ?? 465,
           smtp_user: data.smtp_user ?? "",
           smtp_app_password: data.smtp_app_password ?? "",
         });
@@ -57,7 +57,7 @@ export function SettingsDialog({ userId, onSaved }: { userId: string; onSaved: (
       company_name: f.company_name || null,
       phone: f.phone || null,
       smtp_host: f.smtp_host || "smtp.gmail.com",
-      smtp_port: Number(f.smtp_port) || 587,
+      smtp_port: Number(f.smtp_port) || 465,
       smtp_user: f.smtp_user || null,
       smtp_app_password: f.smtp_app_password || null,
       updated_at: new Date().toISOString(),
@@ -111,7 +111,7 @@ export function SettingsDialog({ userId, onSaved }: { userId: string; onSaved: (
                 </div>
                 <div className="col-span-1">
                   <Label htmlFor="settings-smtp-port">Port</Label>
-                  <Input id="settings-smtp-port" name="smtp_port" type="number" value={f.smtp_port} onChange={(e) => setF({ ...f, smtp_port: Number(e.target.value) || 587 })} />
+                  <Input id="settings-smtp-port" name="smtp_port" type="number" value={f.smtp_port} onChange={(e) => setF({ ...f, smtp_port: Number(e.target.value) || 465 })} />
                 </div>
               </div>
               <div className="mt-3">
