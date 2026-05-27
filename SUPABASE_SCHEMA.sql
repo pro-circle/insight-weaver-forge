@@ -70,6 +70,10 @@ create table if not exists public.customers (
   updated_at timestamptz default now()
 );
 create index if not exists customers_user_id_idx on public.customers(user_id);
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, update on public.profiles to service_role;
+grant select, insert, update, delete on public.customers to authenticated;
+grant select, insert, update, delete on public.customers to service_role;
 
 -- 3. ACTIVITY LOGS
 create table if not exists public.activity_logs (
@@ -80,6 +84,8 @@ create table if not exists public.activity_logs (
   created_at timestamptz default now()
 );
 create index if not exists activity_user_idx on public.activity_logs(user_id);
+grant select, insert on public.activity_logs to authenticated;
+grant select, insert on public.activity_logs to service_role;
 
 -- 4. NOTIFICATIONS SENT
 create table if not exists public.notifications_sent (
@@ -92,6 +98,8 @@ create table if not exists public.notifications_sent (
   created_at timestamptz default now()
 );
 alter table public.notifications_sent add column if not exists message text;
+grant select, insert, update, delete on public.notifications_sent to authenticated;
+grant select, insert, update, delete on public.notifications_sent to service_role;
 
 -- 4b. EMAIL QUEUE (server-side automation worker)
 create table if not exists public.email_queue (
