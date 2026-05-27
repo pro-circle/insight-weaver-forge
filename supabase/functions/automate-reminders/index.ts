@@ -247,15 +247,15 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
 
   const dueCustomers = (customers ?? []) as Customer[];
   if (!dueCustomers.length) {
-    await sb.from("profiles").update({
-      automation_last_run_at: new Date().toISOString(),
-    }).eq("id", p.id);
+    // Do NOT mark as run — nothing was attempted. This way, if the user adds
+    // an unpaid customer later today, the next cron tick will still send.
     console.log(
-      `[${p.id}] automation complete: no unpaid customers with email`,
+      `[${p.id}] automation noop: no unpaid customers with email`,
       baseDetails,
     );
-    await safeLog(sb, p.id, "automation_cron_complete", {
+    await safeLog(sb, p.id, "automation_cron_skip", {
       ...baseDetails,
+      reason: "no unpaid customers with email",
       sent: 0,
       failed: 0,
       reason: "no unpaid customers with email",
