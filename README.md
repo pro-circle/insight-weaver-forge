@@ -24,7 +24,7 @@ All real secrets live in Supabase → Project Settings → **Edge Functions → 
 1. **Run the schema** — paste `SUPABASE_SCHEMA.sql` into the SQL Editor and run it (idempotent).
 2. **Enable extensions** — Database → Extensions → enable `pg_cron` and `pg_net`.
 3. **Auth providers** — Authentication → Providers → enable **Email** and **Google**.
-4. **URL Configuration** — add `http://localhost:8080` and your Firebase URL to *Site URL* + *Redirect URLs*.
+4. **URL Configuration** — add `http://localhost:8080` and your Firebase URL to _Site URL_ + _Redirect URLs_.
 5. **Storage** — the schema creates the private `User_uploads` bucket (15 MB cap, RLS scoped to `{userId}/...`).
 6. **Edge Function secrets** — Project Settings → Edge Functions → Secrets, add:
    - `GROQ_API_KEY_1`, `GROQ_API_KEY_2` — primary + fallback Groq keys
