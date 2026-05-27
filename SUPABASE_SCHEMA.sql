@@ -83,9 +83,9 @@ create table if not exists public.activity_logs (
   details jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
-create index if not exists activity_user_idx on public.activity_logs(user_id);
 grant select, insert on public.activity_logs to authenticated;
 grant select, insert on public.activity_logs to service_role;
+create index if not exists activity_user_idx on public.activity_logs(user_id);
 
 -- 4. NOTIFICATIONS SENT
 create table if not exists public.notifications_sent (
@@ -97,9 +97,9 @@ create table if not exists public.notifications_sent (
   message text,
   created_at timestamptz default now()
 );
-alter table public.notifications_sent add column if not exists message text;
 grant select, insert, update, delete on public.notifications_sent to authenticated;
 grant select, insert, update, delete on public.notifications_sent to service_role;
+alter table public.notifications_sent add column if not exists message text;
 
 -- 4b. EMAIL QUEUE (server-side automation worker)
 create table if not exists public.email_queue (
@@ -160,9 +160,9 @@ create table if not exists public.uploaded_files (
   rows_imported integer,
   created_at timestamptz default now()
 );
-create index if not exists uploaded_files_user_idx on public.uploaded_files(user_id);
 grant select, insert, update, delete on public.uploaded_files to authenticated;
 grant select, insert, update, delete on public.uploaded_files to service_role;
+create index if not exists uploaded_files_user_idx on public.uploaded_files(user_id);
 
 -- ============================================================
 -- AUTO-CREATE PROFILE ON SIGNUP (carries name + company from metadata)
