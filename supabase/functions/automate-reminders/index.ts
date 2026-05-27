@@ -30,8 +30,13 @@ interface Profile {
 }
 
 interface Customer {
-  id: string; user_id: string; name: string;
-  email: string | null; amount: number; status: string; due_date: string | null;
+  id: string;
+  user_id: string;
+  name: string;
+  email: string | null;
+  amount: number;
+  status: string;
+  due_date: string | null;
 }
 
 interface EmailJob {
@@ -66,8 +71,13 @@ function render(tpl: string, vars: Record<string, string | number>) {
 /** Returns the current local date (YYYY-MM-DD) and time (HH:MM) for `tz`. */
 function localParts(tz: string): { date: string; time: string } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: tz,
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
   return {
@@ -79,7 +89,10 @@ function localParts(tz: string): { date: string; time: string } {
 /** Returns the local YYYY-MM-DD of an ISO timestamp in the given tz. */
 function localDateOf(iso: string, tz: string): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric", month: "2-digit", day: "2-digit", timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: tz,
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
@@ -88,7 +101,9 @@ function localDateOf(iso: string, tz: string): string {
 async function logHeartbeat(sb: SupabaseClient, details: Record<string, unknown>) {
   try {
     await sb.from("activity_logs").insert({
-      user_id: null, action: "automation_cron_tick", details,
+      user_id: null,
+      action: "automation_cron_tick",
+      details,
     });
   } catch (e) {
     console.error("heartbeat log failed", e);
@@ -119,7 +134,9 @@ async function enqueueUserJobs(sb: SupabaseClient, p: Profile) {
 
   if (!customers?.length) {
     await sb.from("activity_logs").insert({
-      user_id: p.id, action: "automation_cron_enqueue", details: { queued: 0, reason: "no due customers", local_date: today },
+      user_id: p.id,
+      action: "automation_cron_enqueue",
+      details: { queued: 0, reason: "no due customers", local_date: today },
     });
     await sb.from("profiles").update({ automation_last_run_at: now.toISOString() }).eq("id", p.id);
     return { queued: 0 };
@@ -128,8 +145,12 @@ async function enqueueUserJobs(sb: SupabaseClient, p: Profile) {
   const fromName = p.company_name || p.name || "Us";
   const jobs = (customers as Customer[]).map((c) => {
     const vars = {
-      to_name: c.name, from_name: fromName, amount: c.amount,
-      status: c.status, due_date: c.due_date ?? "—", upi_link: "",
+      to_name: c.name,
+      from_name: fromName,
+      amount: c.amount,
+      status: c.status,
+      due_date: c.due_date ?? "—",
+      upi_link: "",
     };
     return {
       user_id: p.id,
@@ -157,7 +178,8 @@ async function enqueueUserJobs(sb: SupabaseClient, p: Profile) {
 
   await sb.from("profiles").update({ automation_last_run_at: now.toISOString() }).eq("id", p.id);
   await sb.from("activity_logs").insert({
-    user_id: p.id, action: "automation_cron_enqueue",
+    user_id: p.id,
+    action: "automation_cron_enqueue",
     details: { queued_attempted: jobs.length, local_date: today, scheduled, timezone: tz },
   });
   return { queued: jobs.length };
@@ -171,7 +193,9 @@ async function processQueuedEmails(sb: SupabaseClient) {
   const nowIso = new Date().toISOString();
   const { data: jobs, error } = await sb
     .from("email_queue")
-    .select("id, user_id, customer_id, recipient, subject, body, from_name, smtp_host, smtp_port, smtp_user, smtp_app_password, attempts")
+    .select(
+      "id, user_id, customer_id, recipient, subject, body, from_name, smtp_host, smtp_port, smtp_user, smtp_app_password, attempts",
+    )
     .eq("status", "pending")
     .lte("scheduled_for", nowIso)
     .lt("attempts", MAX_ATTEMPTS)
@@ -180,16 +204,21 @@ async function processQueuedEmails(sb: SupabaseClient) {
 
   if (error) throw error;
 
-  let sent = 0, failed = 0;
+  let sent = 0,
+    failed = 0;
   const errors: string[] = [];
 
   for (const job of (jobs ?? []) as EmailJob[]) {
     const attempt = (job.attempts || 0) + 1;
-    await sb.from("email_queue").update({
-      status: "processing",
-      attempts: attempt,
-      updated_at: new Date().toISOString(),
-    }).eq("id", job.id).eq("status", "pending");
+    await sb
+      .from("email_queue")
+      .update({
+        status: "processing",
+        attempts: attempt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .eq("status", "pending");
 
     let client: SMTPClient | null = null;
     try {
@@ -211,11 +240,20 @@ async function processQueuedEmails(sb: SupabaseClient) {
         html: job.body.replace(/\n/g, "<br/>"),
       });
 
-      await sb.from("email_queue").update({
-        status: "sent", sent_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null,
-      }).eq("id", job.id);
+      await sb
+        .from("email_queue")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_error: null,
+        })
+        .eq("id", job.id);
       await sb.from("notifications_sent").insert({
-        user_id: job.user_id, customer_id: job.customer_id, channel: "email", message: "auto",
+        user_id: job.user_id,
+        customer_id: job.customer_id,
+        channel: "email",
+        message: "auto",
       });
       sent++;
     } catch (e) {
@@ -223,18 +261,26 @@ async function processQueuedEmails(sb: SupabaseClient) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${job.recipient}: ${msg}`);
       console.error(`[${job.user_id}] queued send to ${job.recipient} failed:`, msg);
-      await sb.from("email_queue").update({
-        status: attempt >= MAX_ATTEMPTS ? "failed" : "pending",
-        last_error: msg,
-        scheduled_for: attempt >= MAX_ATTEMPTS ? nowIso : nextRetryIso(attempt),
-        updated_at: new Date().toISOString(),
-      }).eq("id", job.id);
+      await sb
+        .from("email_queue")
+        .update({
+          status: attempt >= MAX_ATTEMPTS ? "failed" : "pending",
+          last_error: msg,
+          scheduled_for: attempt >= MAX_ATTEMPTS ? nowIso : nextRetryIso(attempt),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
       await sb.from("activity_logs").insert({
-        user_id: job.user_id, action: "automation_email_error",
+        user_id: job.user_id,
+        action: "automation_email_error",
         details: { recipient: job.recipient, attempt, error: msg },
       });
     } finally {
-      try { await client?.close(); } catch { /* noop */ }
+      try {
+        await client?.close();
+      } catch {
+        /* noop */
+      }
     }
   }
 
@@ -264,7 +310,9 @@ Deno.serve(async (req) => {
 
   const { data: profiles, error } = await sb
     .from("profiles")
-    .select("id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template")
+    .select(
+      "id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template",
+    )
     .eq("automation_enabled", true);
 
   if (error) {
@@ -288,9 +336,13 @@ Deno.serve(async (req) => {
       summary.push({ user: p.id, error: msg });
       try {
         await sb.from("activity_logs").insert({
-          user_id: p.id, action: "automation_cron_error", details: { error: msg },
+          user_id: p.id,
+          action: "automation_cron_error",
+          details: { error: msg },
         });
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }
   }
 

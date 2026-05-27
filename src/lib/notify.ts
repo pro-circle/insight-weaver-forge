@@ -41,11 +41,17 @@ async function invokePublicFunction<T>(name: string, body: unknown) {
 
 // ============== UPI deep-link ==============
 export function buildUpiLink(opts: {
-  upiId: string; payeeName: string; amount: number; note?: string;
+  upiId: string;
+  payeeName: string;
+  amount: number;
+  note?: string;
 }) {
   const params = new URLSearchParams({
-    pa: opts.upiId, pn: opts.payeeName, am: String(opts.amount),
-    cu: "INR", tn: opts.note ?? "Payment",
+    pa: opts.upiId,
+    pn: opts.payeeName,
+    am: String(opts.amount),
+    cu: "INR",
+    tn: opts.note ?? "Payment",
   });
   return `upi://pay?${params.toString()}`;
 }
@@ -86,11 +92,16 @@ export async function sendReminderEmail(opts: {
 
 // ============== Contact Developer (server-proxied EmailJS) ==============
 export async function sendContactDeveloper(payload: {
-  name: string; user_email: string; user_message: string;
+  name: string;
+  user_email: string;
+  user_message: string;
 }) {
-  const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>("contact-developer", {
-    body: payload,
-  });
+  const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>(
+    "contact-developer",
+    {
+      body: payload,
+    },
+  );
   if (error) throw new Error(error.message);
   if (!data?.ok) throw new Error(data?.error || "Failed to send");
   return data;
