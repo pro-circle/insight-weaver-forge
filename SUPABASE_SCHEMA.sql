@@ -92,6 +92,32 @@ create table if not exists public.notifications_sent (
 );
 alter table public.notifications_sent add column if not exists message text;
 
+-- 4b. EMAIL QUEUE (server-side automation worker)
+create table if not exists public.email_queue (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  customer_id uuid references public.customers(id) on delete set null,
+  recipient text not null,
+  subject text not null,
+  body text not null,
+  from_name text not null,
+  smtp_host text default 'smtp.gmail.com',
+  smtp_port integer default 465,
+  smtp_user text not null,
+  smtp_app_password text not null,
+  status text not null default 'pending' check (status in ('pending','processing','sent','failed')),
+  attempts integer not null default 0,
+  last_error text,
+  idempotency_key text not null unique,
+  scheduled_for timestamptz not null default now(),
+  sent_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+grant all on public.email_queue to service_role;
+create index if not exists email_queue_pending_idx on public.email_queue(status, scheduled_for, created_at);
+create index if not exists email_queue_user_idx on public.email_queue(user_id);
+
 -- 5. VISITOR LOGS
 create table if not exists public.visitor_logs (
   id uuid primary key default gen_random_uuid(),
@@ -158,6 +184,7 @@ alter table public.profiles            enable row level security;
 alter table public.customers           enable row level security;
 alter table public.activity_logs       enable row level security;
 alter table public.notifications_sent  enable row level security;
+alter table public.email_queue         enable row level security;
 alter table public.visitor_logs        enable row level security;
 alter table public.app_events          enable row level security;
 alter table public.uploaded_files      enable row level security;
