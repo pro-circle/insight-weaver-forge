@@ -32,6 +32,8 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, update on public.profiles to service_role;
 
 -- Migrate existing installations
 alter table public.profiles add column if not exists company_name text;
@@ -69,11 +71,9 @@ create table if not exists public.customers (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-create index if not exists customers_user_id_idx on public.customers(user_id);
-grant select, insert, update, delete on public.profiles to authenticated;
-grant select, update on public.profiles to service_role;
 grant select, insert, update, delete on public.customers to authenticated;
 grant select, insert, update, delete on public.customers to service_role;
+create index if not exists customers_user_id_idx on public.customers(user_id);
 
 -- 3. ACTIVITY LOGS
 create table if not exists public.activity_logs (
