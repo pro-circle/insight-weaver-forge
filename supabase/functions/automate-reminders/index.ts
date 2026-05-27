@@ -210,7 +210,7 @@ async function processQueuedEmails(sb: SupabaseClient) {
 
   for (const job of (jobs ?? []) as EmailJob[]) {
     const attempt = (job.attempts || 0) + 1;
-    await sb
+    const { data: locked } = await sb
       .from("email_queue")
       .update({
         status: "processing",
@@ -218,7 +218,11 @@ async function processQueuedEmails(sb: SupabaseClient) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.id)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
+
+    if (!locked) continue;
 
     let client: SMTPClient | null = null;
     try {
