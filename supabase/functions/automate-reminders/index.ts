@@ -202,6 +202,7 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
   const dueCustomers = (customers ?? []) as Customer[];
   if (!dueCustomers.length) {
     await sb.from("profiles").update({ automation_last_run_at: new Date().toISOString() }).eq("id", p.id);
+    console.log(`[${p.id}] automation complete: no unpaid customers with email`, baseDetails);
     await safeLog(sb, p.id, "automation_cron_complete", {
       ...baseDetails,
       sent: 0,
@@ -256,6 +257,11 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
   }
 
   await sb.from("profiles").update({ automation_last_run_at: new Date().toISOString() }).eq("id", p.id);
+  console.log(`[${p.id}] automation complete: sent ${sent}, failed ${failed}`, {
+    ...baseDetails,
+    total_due: dueCustomers.length,
+    errors: errors.slice(0, 5),
+  });
   await safeLog(sb, p.id, "automation_cron_complete", {
     ...baseDetails,
     total_due: dueCustomers.length,
