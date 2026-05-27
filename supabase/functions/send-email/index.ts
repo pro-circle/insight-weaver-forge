@@ -51,17 +51,22 @@ Deno.serve(async (req) => {
 
   let client: SMTPClient | null = null;
   try {
+    // Gmail + denomailer is most reliable on 465 (implicit TLS).
+    // Port 587 (STARTTLS) frequently throws "invalid cmd" with this lib.
+    const port = body.smtp.port || 465;
+    const useImplicitTls = port === 465;
     client = new SMTPClient({
       connection: {
         hostname: body.smtp.host || "smtp.gmail.com",
-        port: body.smtp.port || 587,
-        tls: false,
+        port,
+        tls: useImplicitTls,
         auth: {
           username: body.smtp.user,
           password: body.smtp.password.replace(/\s+/g, ""),
         },
       },
     });
+
 
     await client.send({
       from: `${body.from_name || body.smtp.user} <${body.smtp.user}>`,
