@@ -8,6 +8,7 @@ import { supabase, logActivity } from "@/lib/supabase";
 import { getInsight } from "@/lib/ai";
 import { buildUpiLink, sendReminderEmail, whatsappLink, smsLink } from "@/lib/notify";
 import { renderTemplate, isValidPhone, DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT, DEFAULT_SMS, DEFAULT_WHATSAPP } from "@/lib/templates";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 export interface Customer {
   id: string; name: string; phone: string | null; email: string | null;
@@ -95,12 +96,22 @@ export function UserCard({
       });
       await supabase.from("notifications_sent").insert({
         user_id: (await supabase.auth.getUser()).data.user!.id,
-        customer_id: customer.id, channel: "email", message: emailBody,
+        customer_id: customer.id, channel: "email", status: "sent", message: emailBody,
       });
       logActivity("notify_sent", { channel: "email", customer_id: customer.id });
       toast.success(`📧 Email sent to ${customer.name}`);
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Email failed");
+      const msg = e instanceof Error ? e.message : "Email failed";
+      try {
+        const u = (await supabase.auth.getUser()).data.user;
+        if (u) {
+          await supabase.from("notifications_sent").insert({
+            user_id: u.id, customer_id: customer.id, channel: "email",
+            status: "failed", message: msg,
+          });
+        }
+      } catch { /* noop */ }
+      toast.error(msg);
     } finally {
       setSendingMail(false);
     }
@@ -116,7 +127,6 @@ export function UserCard({
   }
 
   async function remove() {
-    if (!confirm(`Delete ${customer.name}?`)) return;
     const { error } = await supabase.from("customers").delete().eq("id", customer.id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
