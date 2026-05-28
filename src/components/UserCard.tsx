@@ -207,9 +207,18 @@ export function UserCard({
               }}
             ><Phone className="mr-1 h-4 w-4" /> SMS</a>
           </Button>
-          <Button size="sm" variant="ghost" onClick={remove} className="ml-auto text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <ConfirmDialog
+            title={`Delete ${customer.name}?`}
+            description="This permanently removes the customer and their history."
+            confirmLabel="Delete"
+            destructive
+            onConfirm={remove}
+            trigger={
+              <Button size="sm" variant="ghost" className="ml-auto text-red-600 hover:bg-red-600 hover:text-white">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            }
+          />
         </div>
       </CardContent>
     </Card>
