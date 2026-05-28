@@ -87,19 +87,24 @@ grant select, insert on public.activity_logs to authenticated;
 grant select, insert on public.activity_logs to service_role;
 create index if not exists activity_user_idx on public.activity_logs(user_id);
 
--- 4. NOTIFICATIONS SENT
+-- 4. NOTIFICATIONS SENT (history of every send attempt, sent + failed)
 create table if not exists public.notifications_sent (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   customer_id uuid references public.customers(id) on delete set null,
   channel text not null check (channel in ('email','whatsapp','sms')),
-  status text default 'sent',
+  status text not null default 'sent' check (status in ('sent','failed')),
   message text,
   created_at timestamptz default now()
 );
 grant select, insert, update, delete on public.notifications_sent to authenticated;
 grant select, insert, update, delete on public.notifications_sent to service_role;
 alter table public.notifications_sent add column if not exists message text;
+-- Backfill/relax legacy status values then re-assert the constraint
+update public.notifications_sent set status = 'sent' where status is null or status not in ('sent','failed');
+alter table public.notifications_sent drop constraint if exists notifications_sent_status_check;
+alter table public.notifications_sent add constraint notifications_sent_status_check check (status in ('sent','failed'));
+create index if not exists notifications_user_channel_idx on public.notifications_sent(user_id, channel, status);
 
 -- 5. VISITOR LOGS
 create table if not exists public.visitor_logs (
