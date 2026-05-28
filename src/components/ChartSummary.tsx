@@ -6,17 +6,38 @@ interface Stats {
   paidCount: number; pendingCount: number; overdueCount: number; totalCount: number;
 }
 
-export function ChartSummary({ stats }: { stats: Stats }) {
+export interface ChannelCounts {
+  email: number;
+  whatsapp: number;
+  sms: number;
+}
+
+export function ChartSummary({
+  stats,
+  channelCounts,
+}: {
+  stats: Stats;
+  channelCounts?: ChannelCounts;
+}) {
   const data = [
     { name: "Paid", value: stats.paid, color: "#16a34a" },
     { name: "Pending", value: stats.pending, color: "#eab308" },
     { name: "Overdue", value: stats.overdue, color: "#dc2626" },
   ];
 
+  const channelData = channelCounts
+    ? [
+        { name: "Email", value: channelCounts.email, color: "#2563eb" },
+        { name: "WhatsApp", value: channelCounts.whatsapp, color: "#7c3aed" },
+        { name: "SMS", value: channelCounts.sms, color: "#ea580c" },
+      ].filter((d) => d.value > 0)
+    : [];
+  const showChannelPie = channelData.length > 0;
+
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className={`grid grid-cols-1 gap-4 ${showChannelPie ? "lg:grid-cols-3 md:grid-cols-2" : "md:grid-cols-2"}`}>
           <div className="grid grid-cols-3 gap-3">
             <Stat label="Paid"    value={`₹${stats.paid.toLocaleString()}`}    count={stats.paidCount}    tint="bg-green-50 text-green-800 border-green-200" />
             <Stat label="Pending" value={`₹${stats.pending.toLocaleString()}`} count={stats.pendingCount} tint="bg-yellow-50 text-yellow-800 border-yellow-200" />
@@ -34,6 +55,22 @@ export function ChartSummary({ stats }: { stats: Stats }) {
               </PieChart>
             </ResponsiveContainer>
           </div>
+          {showChannelPie && (
+            <div className="h-56">
+              <p className="mb-1 text-center text-xs font-medium text-muted-foreground">
+                Sent notifications by channel
+              </p>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={channelData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={3}>
+                    {channelData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: number, n: string) => [`${v}`, n]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -47,7 +84,7 @@ function Stat({ label, value, count, tint, extra = "" }: {
     <div className={`rounded-lg border p-3 ${tint} ${extra}`}>
       <p className="text-xs font-medium uppercase tracking-wide opacity-80">{label}</p>
       <p className="mt-1 text-lg font-semibold">{value}</p>
-      <p className="text-xs opacity-80">{count} {count === 1 ? "customer" : "customers"}</p>
+      <p className="text-xs opacity-80"><b>{count}</b> {count === 1 ? "customer" : "customers"}</p>
     </div>
   );
 }
