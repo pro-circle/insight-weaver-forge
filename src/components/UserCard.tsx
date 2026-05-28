@@ -128,7 +128,7 @@ export function UserCard({
 
   async function remove() {
     const { error } = await supabase.from("customers").delete().eq("id", customer.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Deleted");
     onDeleted();
   }
