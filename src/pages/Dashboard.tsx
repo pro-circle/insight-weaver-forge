@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { supabase, logActivity } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { UserCard, type Customer, type Profile } from "@/components/UserCard";
-import { ChartSummary } from "@/components/ChartSummary";
+import { ChartSummary, type ChannelCounts } from "@/components/ChartSummary";
 import { CustomersTable } from "@/components/CustomersTable";
 import { UploadExcel } from "@/components/UploadExcel";
 import { ManualAddForm } from "@/components/ManualAddForm";
@@ -18,16 +19,17 @@ import { AutomateDialog } from "@/components/AutomateDialog";
 import { AppGuideDialog } from "@/components/AppGuideDialog";
 import { ContactDeveloperDialog } from "@/components/ContactDeveloperDialog";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { HistoryDialog } from "@/components/HistoryDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CompanyNameGate } from "@/components/CompanyNameGate";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { FooterLegal } from "@/components/FooterLegal";
-import { sendReminderEmail } from "@/lib/notify";
+import { buildUpiLink, sendReminderEmail } from "@/lib/notify";
 import { renderTemplate, DEFAULT_EMAIL_BODY, DEFAULT_EMAIL_SUBJECT } from "@/lib/templates";
 import { LogOut, Search, Sparkles, Loader2 } from "lucide-react";
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 
-/** Tailwind classes that override tabs to use the dark-blue hover identity. */
 const TAB_TRIGGER =
   "data-[state=active]:bg-blue-700 data-[state=active]:text-white hover:bg-blue-700 hover:text-white transition-colors";
 
@@ -36,8 +38,7 @@ export function Dashboard() {
   const nav = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  // `loading` is only true for the very first fetch so subsequent saves don't
-  // tear down the whole UI ("entire page reloads after each save" bug).
+  const [channelCounts, setChannelCounts] = useState<ChannelCounts>({ email: 0, whatsapp: 0, sms: 0 });
   const [loading, setLoading] = useState(true);
   const firstLoad = useRef(true);
   const [q, setQ] = useState("");
@@ -47,41 +48,41 @@ export function Dashboard() {
   const userId = user!.id;
 
   const fetchAll = useCallback(async () => {
-    const [{ data: p }, { data: cs }] = await Promise.all([
+    const [{ data: p }, { data: cs }, { data: ns }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase
         .from("customers")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("notifications_sent")
+        .select("channel")
+        .eq("user_id", userId)
+        .eq("status", "sent"),
     ]);
     setProfile(p as Profile | null);
     setCustomers((cs as Customer[] | null) ?? []);
+    const cc: ChannelCounts = { email: 0, whatsapp: 0, sms: 0 };
+    (ns ?? []).forEach((r: { channel: string }) => {
+      if (r.channel === "email" || r.channel === "whatsapp" || r.channel === "sms") cc[r.channel]++;
+    });
+    setChannelCounts(cc);
     if (firstLoad.current) {
       setLoading(false);
       firstLoad.current = false;
     }
   }, [userId]);
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const stats = useMemo(() => {
-    const sum = (s: string) =>
-      customers.filter((c) => c.status === s).reduce((a, c) => a + Number(c.amount || 0), 0);
+    const sum = (s: string) => customers.filter((c) => c.status === s).reduce((a, c) => a + Number(c.amount || 0), 0);
     const cnt = (s: string) => customers.filter((c) => c.status === s).length;
-    const paid = sum("paid"),
-      pending = sum("pending"),
-      overdue = sum("overdue");
+    const paid = sum("paid"), pending = sum("pending"), overdue = sum("overdue");
     return {
-      paid,
-      pending,
-      overdue,
-      total: paid + pending + overdue,
-      paidCount: cnt("paid"),
-      pendingCount: cnt("pending"),
-      overdueCount: cnt("overdue"),
+      paid, pending, overdue, total: paid + pending + overdue,
+      paidCount: cnt("paid"), pendingCount: cnt("pending"), overdueCount: cnt("overdue"),
       totalCount: customers.length,
     };
   }, [customers]);
@@ -107,17 +108,25 @@ export function Dashboard() {
     }
     setRunning(true);
     const due = customers.filter((c) => c.status !== "paid" && c.email);
-    let sent = 0,
-      failed = 0;
+    let sent = 0, failed = 0;
     const errors: string[] = [];
     for (const c of due) {
+      const upiLink =
+        profile.enable_upi && profile.upi_id && profile.payee_name && Number(c.amount) > 0
+          ? buildUpiLink({
+              upiId: profile.upi_id,
+              payeeName: profile.payee_name,
+              amount: Number(c.amount),
+              note: `Payment from ${c.name}`,
+            })
+          : "";
       const vars = {
         to_name: c.name,
         from_name: profile.company_name || profile.name || "Us",
         amount: c.amount,
         status: c.status,
         due_date: c.due_date ?? "—",
-        upi_link: "",
+        upi_link: upiLink,
       };
       try {
         await sendReminderEmail({
@@ -134,18 +143,24 @@ export function Dashboard() {
         });
         await supabase
           .from("notifications_sent")
-          .insert({ user_id: userId, customer_id: c.id, channel: "email", message: "manual run" });
+          .insert({ user_id: userId, customer_id: c.id, channel: "email", status: "sent", message: "manual run" });
         sent++;
       } catch (e) {
         failed++;
-        errors.push(`${c.email}: ${e instanceof Error ? e.message : String(e)}`);
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`${c.email}: ${msg}`);
+        try {
+          await supabase
+            .from("notifications_sent")
+            .insert({ user_id: userId, customer_id: c.id, channel: "email", status: "failed", message: msg });
+        } catch { /* noop */ }
       }
     }
     setRunning(false);
     logActivity("automation_run_now", { sent, failed, errors: errors.slice(0, 5) });
-    if (failed)
-      toast.error(`Sent ${sent} • Failed ${failed}: ${errors[0] || "check SMTP settings"}`);
+    if (failed) toast.error(`Sent ${sent} • Failed ${failed}: ${errors[0] || "check SMTP settings"}`);
     else toast.success(`Sent ${sent} • Failed ${failed}`);
+    fetchAll();
   }
 
   async function signOut() {
@@ -155,8 +170,21 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-white">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
+      <div className="min-h-screen bg-white p-6">
+        <Skeleton className="mb-4 h-12 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
+        </div>
       </div>
     );
   }
@@ -177,21 +205,30 @@ export function Dashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <AppGuideDialog />
+            <TemplatesDialog userId={userId} onSaved={fetchAll} />
+            <SettingsDialog userId={userId} onSaved={fetchAll} />
+            <HistoryDialog userId={userId} />
             <FeedbackDialog />
             <ContactDeveloperDialog
               defaultName={profile?.name ?? ""}
               defaultEmail={user?.email ?? ""}
             />
-            <TemplatesDialog userId={userId} onSaved={fetchAll} />
-            <SettingsDialog userId={userId} onSaved={fetchAll} />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="hover:bg-red-600 hover:text-white"
-            >
-              <LogOut className="mr-1 h-4 w-4" /> Sign out
-            </Button>
+            <ConfirmDialog
+              title="Are you sure you want to logout?"
+              description="You'll need to sign in again to access your dashboard."
+              confirmLabel="Logout"
+              destructive
+              onConfirm={signOut}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-red-600 hover:text-white"
+                >
+                  <LogOut className="mr-1 h-4 w-4" /> Sign out
+                </Button>
+              }
+            />
           </div>
         </div>
       </header>
@@ -214,22 +251,14 @@ export function Dashboard() {
           />
         </div>
 
-        <ChartSummary stats={stats} />
+        <ChartSummary stats={stats} channelCounts={channelCounts} />
 
         <Tabs defaultValue="customers">
           <TabsList className="flex w-full flex-wrap gap-1 sm:w-auto">
-            <TabsTrigger value="customers" className={TAB_TRIGGER}>
-              Customers
-            </TabsTrigger>
-            <TabsTrigger value="add" className={TAB_TRIGGER}>
-              Add
-            </TabsTrigger>
-            <TabsTrigger value="import" className={TAB_TRIGGER}>
-              Import Excel
-            </TabsTrigger>
-            <TabsTrigger value="table" className={TAB_TRIGGER}>
-              Table view
-            </TabsTrigger>
+            <TabsTrigger value="customers" className={TAB_TRIGGER}>Customers</TabsTrigger>
+            <TabsTrigger value="add" className={TAB_TRIGGER}>Add</TabsTrigger>
+            <TabsTrigger value="import" className={TAB_TRIGGER}>Import Excel</TabsTrigger>
+            <TabsTrigger value="table" className={TAB_TRIGGER}>Table view</TabsTrigger>
           </TabsList>
 
           <TabsContent value="customers" className="space-y-4 pt-4">
@@ -284,19 +313,11 @@ export function Dashboard() {
           </TabsContent>
 
           <TabsContent value="add" className="pt-4">
-            <Card>
-              <CardContent className="p-5">
-                <ManualAddForm userId={userId} onAdded={fetchAll} />
-              </CardContent>
-            </Card>
+            <Card><CardContent className="p-5"><ManualAddForm userId={userId} onAdded={fetchAll} /></CardContent></Card>
           </TabsContent>
 
           <TabsContent value="import" className="pt-4">
-            <Card>
-              <CardContent className="p-5">
-                <UploadExcel userId={userId} onUploaded={fetchAll} />
-              </CardContent>
-            </Card>
+            <Card><CardContent className="p-5"><UploadExcel userId={userId} onUploaded={fetchAll} /></CardContent></Card>
           </TabsContent>
 
           <TabsContent value="table" className="pt-4">

@@ -69,12 +69,21 @@ export function CustomersTable({
       });
       const { data } = await supabase.auth.getUser();
       await supabase.from("notifications_sent").insert({
-        user_id: data.user!.id, customer_id: c.id, channel: "email", message: "table row",
+        user_id: data.user!.id, customer_id: c.id, channel: "email", status: "sent", message: "table row",
       });
       logActivity("notify_sent", { channel: "email", customer_id: c.id, source: "table" });
       toast.success(`📧 Email sent to ${c.name}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Email failed");
+      const msg = e instanceof Error ? e.message : "Email failed";
+      try {
+        const u = (await supabase.auth.getUser()).data.user;
+        if (u) {
+          await supabase.from("notifications_sent").insert({
+            user_id: u.id, customer_id: c.id, channel: "email", status: "failed", message: msg,
+          });
+        }
+      } catch { /* noop */ }
+      toast.error(msg);
     } finally {
       setSendingId(null);
     }

@@ -25,6 +25,9 @@ interface Profile {
   smtp_app_password: string | null;
   email_subject_template: string | null;
   email_body_template: string | null;
+  enable_upi: boolean | null;
+  upi_id: string | null;
+  payee_name: string | null;
 }
 
 interface Customer {
@@ -285,13 +288,24 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
   const errors: string[] = [];
 
   for (const c of dueCustomers) {
+    const upiLink =
+      p.enable_upi && p.upi_id && p.payee_name && Number(c.amount) > 0
+        ? `upi://pay?${new URLSearchParams({
+            pa: p.upi_id,
+            pn: p.payee_name,
+            am: String(c.amount),
+            cu: "INR",
+            tn: `Payment from ${c.name}`,
+          }).toString()}`
+        : "";
+
     const vars = {
       to_name: c.name,
       from_name: fromName,
       amount: c.amount,
       status: c.status,
       due_date: c.due_date ?? "—",
-      upi_link: "",
+      upi_link: upiLink,
     };
 
     try {
@@ -309,6 +323,7 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
         user_id: p.id,
         customer_id: c.id,
         channel: "email",
+        status: "sent",
         message: "auto",
       });
       sent++;
@@ -317,6 +332,15 @@ async function runProfileAutomation(sb: SupabaseClient, p: Profile) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${c.email}: ${msg}`);
       console.error(`[${p.id}] automatic send to ${c.email} failed:`, msg);
+      try {
+        await sb.from("notifications_sent").insert({
+          user_id: p.id,
+          customer_id: c.id,
+          channel: "email",
+          status: "failed",
+          message: msg,
+        });
+      } catch { /* noop */ }
     }
   }
 
@@ -373,7 +397,7 @@ Deno.serve(async (req) => {
   const { data: profiles, error } = await sb
     .from("profiles")
     .select(
-      "id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template",
+      "id, name, company_name, timezone, automation_enabled, automation_time, automation_last_run_at, smtp_host, smtp_port, smtp_user, smtp_app_password, email_subject_template, email_body_template, enable_upi, upi_id, payee_name",
     )
     .eq("automation_enabled", true);
 
