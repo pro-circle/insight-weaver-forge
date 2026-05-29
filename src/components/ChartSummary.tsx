@@ -28,7 +28,7 @@ export function ChartSummary({
   const channelData = channelCounts
     ? [
         { name: "Email", value: channelCounts.email, color: "#2563eb" },
-        { name: "WhatsApp", value: channelCounts.whatsapp, color: "#7c3aed" },
+        { name: "WhatsApp", value: channelCounts.whatsapp, color: "#eab308" },
         { name: "SMS", value: channelCounts.sms, color: "#ea580c" },
       ].filter((d) => d.value > 0)
     : [];

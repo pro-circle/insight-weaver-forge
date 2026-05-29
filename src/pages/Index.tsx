@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Sparkles, Mail, MessageCircle, Phone, FileSpreadsheet, Zap } from "lucide-react";
 import { FooterLegal } from "@/components/FooterLegal";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { LearnMoreDialog } from "@/components/LearnMoreDialog";
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 
@@ -20,7 +21,9 @@ export function Index() {
           <Sparkles className="h-5 w-5 text-blue-700" /> {APP}
         </Link>
         <nav className="flex items-center gap-2">
-          <Button asChild variant="ghost"><Link to="/login">Log in</Link></Button>
+          <Button asChild variant="ghost" className="hover:!bg-green-600 hover:!text-white">
+            <Link to="/login">Log in</Link>
+          </Button>
           <Button asChild><Link to="/signup">Get started</Link></Button>
         </nav>
       </header>
@@ -36,7 +39,24 @@ export function Index() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild><Link to="/signup">Start free</Link></Button>
-            <Button size="lg" variant="outline" asChild><Link to="/login">I have an account</Link></Button>
+            <LearnMoreDialog
+              trigger={
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="group relative overflow-hidden border-2 border-black bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
+                >
+                  {/* Default shimmer sweep — visible inside the button */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-black/20 to-transparent group-hover:via-white/40"
+                    style={{ animation: "lm-shimmer 2.2s linear infinite" }}
+                  />
+                  <style>{`@keyframes lm-shimmer { 0% { transform: translateX(-100%);} 100% { transform: translateX(100%);} }`}</style>
+                  <span className="relative">Learn more</span>
+                </Button>
+              }
+            />
           </div>
         </section>
 
