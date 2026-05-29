@@ -39,7 +39,27 @@ export function Index() {
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button size="lg" asChild><Link to="/signup">Start free</Link></Button>
-            <Button size="lg" variant="outline" asChild><Link to="/login">I have an account</Link></Button>
+            <LearnMoreDialog
+              trigger={
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="group relative overflow-hidden border-2 border-black bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
+                >
+                  {/* Default shimmer sweep — visible inside the button */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/15 to-transparent animate-[shimmer_2.2s_linear_infinite] group-hover:via-white/40"
+                    style={{
+                      // keyframes registered inline so we don't need tailwind config edits
+                      animationName: "lm-shimmer",
+                    }}
+                  />
+                  <style>{`@keyframes lm-shimmer { 0% { transform: translateX(-100%);} 100% { transform: translateX(100%);} }`}</style>
+                  <span className="relative">Learn more</span>
+                </Button>
+              }
+            />
           </div>
         </section>
 
