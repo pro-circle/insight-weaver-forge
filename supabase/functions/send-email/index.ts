@@ -68,12 +68,40 @@ Deno.serve(async (req) => {
     });
 
 
+    // Build a Gmail-friendly HTML body: escape entities, then linkify
+    // upi:// / http(s):// URLs. Gmail's web client will NOT auto-linkify
+    // upi:// URLs and an unescaped `&` inside the query string can be
+    // parsed as an HTML entity, which is why plain-text upi links often
+    // appear missing in the rendered email.
+    function escapeHtml(s: string) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+    const URL_RE = /(upi:\/\/\S+|https?:\/\/\S+)/g;
+    function linkify(text: string) {
+      const escaped = escapeHtml(text);
+      // After escaping, `&` in URL is `&amp;` — keep as-is for the href.
+      return escaped.replace(URL_RE, (url) => {
+        const label = url.startsWith("upi://") ? "👉 Pay now (UPI)" : url;
+        return `<a href="${url}" style="color:#1d4ed8;font-weight:600;text-decoration:underline" target="_blank" rel="noopener">${label}</a>`;
+      });
+    }
+    const htmlBody =
+      body.html ??
+      `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:15px;line-height:1.55;color:#111">${linkify(
+        body.text,
+      ).replace(/\n/g, "<br/>")}</div>`;
+
     await client.send({
       from: `${body.from_name || body.smtp.user} <${body.smtp.user}>`,
       to: body.to_email,
       subject: body.subject,
       content: body.text,
-      html: body.html ?? body.text.replace(/\n/g, "<br/>"),
+      html: htmlBody,
     });
 
     return json(200, { ok: true });
