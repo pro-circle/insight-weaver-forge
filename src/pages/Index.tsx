@@ -21,7 +21,9 @@ export function Index() {
           <Sparkles className="h-5 w-5 text-blue-700" /> {APP}
         </Link>
         <nav className="flex items-center gap-2">
-          <Button asChild variant="ghost"><Link to="/login">Log in</Link></Button>
+          <Button asChild variant="ghost" className="hover:!bg-green-600 hover:!text-white">
+            <Link to="/login">Log in</Link>
+          </Button>
           <Button asChild><Link to="/signup">Get started</Link></Button>
         </nav>
       </header>
