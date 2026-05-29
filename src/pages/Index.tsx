@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Sparkles, Mail, MessageCircle, Phone, FileSpreadsheet, Zap } from "lucide-react";
 import { FooterLegal } from "@/components/FooterLegal";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { LearnMoreDialog } from "@/components/LearnMoreDialog";
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 
