@@ -165,6 +165,7 @@ export function Dashboard() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    toast.success("Logged out");
     nav("/", { replace: true });
   }
 
