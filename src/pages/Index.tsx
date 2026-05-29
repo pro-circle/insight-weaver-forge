@@ -49,11 +49,8 @@ export function Index() {
                   {/* Default shimmer sweep — visible inside the button */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/15 to-transparent animate-[shimmer_2.2s_linear_infinite] group-hover:via-white/40"
-                    style={{
-                      // keyframes registered inline so we don't need tailwind config edits
-                      animationName: "lm-shimmer",
-                    }}
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-black/20 to-transparent group-hover:via-white/40"
+                    style={{ animation: "lm-shimmer 2.2s linear infinite" }}
                   />
                   <style>{`@keyframes lm-shimmer { 0% { transform: translateX(-100%);} 100% { transform: translateX(100%);} }`}</style>
                   <span className="relative">Learn more</span>
