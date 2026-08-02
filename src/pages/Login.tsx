@@ -59,6 +59,28 @@ export function Login() {
               {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in…</> : "Log in"}
             </Button>
           </form>
+
+          <div className="rounded-lg border border-dashed bg-blue-50/60 p-3">
+            <p className="text-xs font-semibold text-blue-950">Demo credentials</p>
+            <div className="mt-2 space-y-1.5">
+              <CopyRow label="Email" value={DEMO_EMAIL} />
+              <CopyRow label="Password" value={DEMO_PASSWORD} />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => {
+                setEmail(DEMO_EMAIL);
+                setPassword(DEMO_PASSWORD);
+                toast.success("Demo credentials filled in");
+              }}
+            >
+              Use demo account
+            </Button>
+          </div>
+
           <div className="relative text-center text-xs text-muted-foreground">
             <span className="relative z-10 bg-card px-2">or</span>
             <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
