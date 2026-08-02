@@ -70,7 +70,7 @@ export function Index() {
 
 function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm transition-colors hover:border-blue-700">
+    <div className="rounded-xl border bg-card p-5 shadow-sm transition-colors hover:border-blue-700 hover:bg-blue-50">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div>
       <p className="mt-3 font-semibold">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
