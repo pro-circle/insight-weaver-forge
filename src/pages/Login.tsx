@@ -7,9 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Copy } from "lucide-react";
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
+const DEMO_EMAIL = "user@email.com";
+const DEMO_PASSWORD = "123456";
+
 
 export function Login() {
   const { user, loading } = useAuth();
@@ -56,6 +59,28 @@ export function Login() {
               {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in…</> : "Log in"}
             </Button>
           </form>
+
+          <div className="rounded-lg border border-dashed bg-blue-50/60 p-3">
+            <p className="text-xs font-semibold text-blue-950">Demo credentials</p>
+            <div className="mt-2 space-y-1.5">
+              <CopyRow label="Email" value={DEMO_EMAIL} />
+              <CopyRow label="Password" value={DEMO_PASSWORD} />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => {
+                setEmail(DEMO_EMAIL);
+                setPassword(DEMO_PASSWORD);
+                toast.success("Demo credentials filled in");
+              }}
+            >
+              Use demo account
+            </Button>
+          </div>
+
           <div className="relative text-center text-xs text-muted-foreground">
             <span className="relative z-10 bg-card px-2">or</span>
             <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
@@ -69,4 +94,29 @@ export function Login() {
       </Card>
     </div>
   );
+}
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md bg-card px-2 py-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1">
+        <code className="text-xs font-medium">{value}</code>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          aria-label={`Copy ${label}`}
+          onClick={async () => {
+            await navigator.clipboard.writeText(value);
+            toast.success(`${label} copied`);
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+
 }
