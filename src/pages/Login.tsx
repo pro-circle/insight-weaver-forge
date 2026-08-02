@@ -95,3 +95,28 @@ export function Login() {
     </div>
   );
 }
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-md bg-card px-2 py-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-1">
+        <code className="text-xs font-medium">{value}</code>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          aria-label={`Copy ${label}`}
+          onClick={async () => {
+            await navigator.clipboard.writeText(value);
+            toast.success(`${label} copied`);
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+
+}
