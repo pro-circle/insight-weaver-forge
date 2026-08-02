@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { isDisposableEmail } from "@/lib/disposable-emails";
 import { Loader2, Sparkles } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
+
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 
@@ -56,6 +58,8 @@ export function Signup() {
     <div className="grid min-h-screen place-items-center bg-blue-50/40 px-4 py-10">
       <Card className="w-full max-w-md">
         <CardContent className="space-y-5 p-6">
+          <BackButton />
+
           <div className="text-center">
             <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white">
               <Sparkles className="h-5 w-5" />

@@ -7,8 +7,8 @@ export function FooterLegal() {
 
   return (
     <footer className="mt-16 border-t bg-card/60">
-      <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-6 py-5 text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Invoice Flow · MVP</p>
+      <div className="container mx-auto flex flex-wrap items-center justify-end gap-3 px-6 py-5 text-sm text-muted-foreground">
+
         <div className="flex gap-4">
           <button onClick={() => setTerms(true)} className="hover:text-foreground hover:underline">Terms of Service</button>
           <button onClick={() => setPrivacy(true)} className="hover:text-foreground hover:underline">Privacy Policy</button>

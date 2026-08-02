@@ -44,19 +44,13 @@ export function Index() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="group relative overflow-hidden border border-border bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
+                  className="shimmer-sweep relative overflow-hidden border border-black bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
                 >
-                  {/* Lovable-style shimmer sweep */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/10 to-transparent group-hover:via-white/30"
-                    style={{ animation: "lm-sweep 2.6s ease-in-out infinite" }}
-                  />
-                  <style>{`@keyframes lm-sweep { 0% { transform: translateX(-100%);} 60%,100% { transform: translateX(100%);} }`}</style>
-                  <span className="relative">Learn more</span>
+                  <span className="relative z-10">Learn more</span>
                 </Button>
               }
             />
+
 
           </div>
         </section>
@@ -76,7 +70,7 @@ export function Index() {
 
 function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm transition-colors hover:border-blue-700">
+    <div className="rounded-xl border bg-card p-5 shadow-sm transition-colors hover:border-blue-700 hover:bg-blue-50">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div>
       <p className="mt-3 font-semibold">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{desc}</p>

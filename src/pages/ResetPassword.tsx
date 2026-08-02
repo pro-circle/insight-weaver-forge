@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
+
 
 export function ResetPassword() {
   const [email, setEmail] = useState("");
@@ -29,7 +31,9 @@ export function ResetPassword() {
     <div className="grid min-h-screen place-items-center bg-blue-50/40 px-4">
       <Card className="w-full max-w-md">
         <CardContent className="space-y-4 p-6">
+          <BackButton />
           <h1 className="text-xl font-semibold">Reset your password</h1>
+
           {sent ? (
             <p className="text-sm text-muted-foreground">
               If that email exists, a reset link is on its way. Check spam too.
