@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { isDisposableEmail } from "@/lib/disposable-emails";
 import { Loader2, Sparkles } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
+
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 
