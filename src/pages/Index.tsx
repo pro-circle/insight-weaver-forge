@@ -44,19 +44,13 @@ export function Index() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="group relative overflow-hidden border border-border bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
+                  className="shimmer-sweep relative overflow-hidden border border-black bg-white font-semibold text-black shadow-sm transition-colors hover:!border-green-600 hover:!bg-green-600 hover:!text-white"
                 >
-                  {/* Lovable-style shimmer sweep */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/10 to-transparent group-hover:via-white/30"
-                    style={{ animation: "lm-sweep 2.6s ease-in-out infinite" }}
-                  />
-                  <style>{`@keyframes lm-sweep { 0% { transform: translateX(-100%);} 60%,100% { transform: translateX(100%);} }`}</style>
-                  <span className="relative">Learn more</span>
+                  <span className="relative z-10">Learn more</span>
                 </Button>
               }
             />
+
 
           </div>
         </section>

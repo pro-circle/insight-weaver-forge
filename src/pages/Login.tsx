@@ -7,7 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Copy } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
+import { BackButton } from "@/components/BackButton";
+
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
 const DEMO_EMAIL = "user@email.com";
