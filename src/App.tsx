@@ -28,7 +28,6 @@ function VisitorLogger() {
 export function App() {
   return (
     <>
-      <ConfigNotice />
       <VisitorLogger />
 
       <Routes>
