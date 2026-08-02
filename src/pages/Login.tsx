@@ -46,6 +46,7 @@ export function Login() {
     <div className="grid min-h-screen place-items-center bg-blue-50/40 px-4">
       <Card className="w-full max-w-md">
         <CardContent className="space-y-5 p-6">
+          <BackButton />
           <div className="text-center">
             <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white">
               <Sparkles className="h-5 w-5" />
@@ -61,11 +62,8 @@ export function Login() {
           </form>
 
           <div className="rounded-lg border border-dashed bg-blue-50/60 p-3">
-            <p className="text-xs font-semibold text-blue-950">Demo credentials</p>
-            <div className="mt-2 space-y-1.5">
-              <CopyRow label="Email" value={DEMO_EMAIL} />
-              <CopyRow label="Password" value={DEMO_PASSWORD} />
-            </div>
+            <p className="text-xs font-semibold text-blue-950">Demo account</p>
+            <p className="mt-1 text-xs text-muted-foreground">Fill the form with demo credentials in one click.</p>
             <Button
               type="button"
               variant="secondary"
@@ -77,9 +75,10 @@ export function Login() {
                 toast.success("Demo credentials filled in");
               }}
             >
-              Use demo account
+              Use credentials
             </Button>
           </div>
+
 
           <div className="relative text-center text-xs text-muted-foreground">
             <span className="relative z-10 bg-card px-2">or</span>
