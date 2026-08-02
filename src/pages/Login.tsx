@@ -7,9 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Copy } from "lucide-react";
 
 const APP = (import.meta.env.VITE_APP_NAME as string | undefined) || "Invoice Flow";
+const DEMO_EMAIL = "user@email.com";
+const DEMO_PASSWORD = "123456";
+
 
 export function Login() {
   const { user, loading } = useAuth();
