@@ -6,7 +6,7 @@ import { Signup } from "@/pages/Signup";
 import { Dashboard } from "@/pages/Dashboard";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -15,9 +15,20 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ConfigNotice() {
+  if (isSupabaseConfigured) return null;
+  return (
+    <div className="border-b border-amber-300 bg-amber-100 px-6 py-2 text-center text-sm text-amber-900">
+      Backend not configured — add <code>VITE_SUPABASE_URL</code> and{" "}
+      <code>VITE_SUPABASE_ANON_KEY</code> to your <code>.env</code>, then restart the dev server.
+    </div>
+  );
+}
+
 function VisitorLogger() {
   const loc = useLocation();
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
     supabase.from("visitor_logs").insert({ path: loc.pathname, user_agent: navigator.userAgent }).then(() => {});
   }, [loc.pathname]);
   return null;
@@ -26,7 +37,9 @@ function VisitorLogger() {
 export function App() {
   return (
     <>
+      <ConfigNotice />
       <VisitorLogger />
+
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
