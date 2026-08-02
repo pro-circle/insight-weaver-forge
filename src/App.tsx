@@ -15,15 +15,6 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ConfigNotice() {
-  if (isSupabaseConfigured) return null;
-  return (
-    <div className="border-b border-amber-300 bg-amber-100 px-6 py-2 text-center text-sm text-amber-900">
-      Backend not configured — add <code>VITE_SUPABASE_URL</code> and{" "}
-      <code>VITE_SUPABASE_ANON_KEY</code> to your <code>.env</code>, then restart the dev server.
-    </div>
-  );
-}
 
 function VisitorLogger() {
   const loc = useLocation();
@@ -37,7 +28,6 @@ function VisitorLogger() {
 export function App() {
   return (
     <>
-      <ConfigNotice />
       <VisitorLogger />
 
       <Routes>
